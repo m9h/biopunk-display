@@ -271,22 +271,28 @@ class AutomataPlayer:
 
         # State
         self._grid = Grid()
-        self._grid.randomize(kwargs.get('density', 0.4))
         self._dying_grid = Grid()  # for Brian's Brain
         self._states_grid = None   # for cyclic CA
 
-        if automaton == 'cyclic':
+        cells = kwargs.get('cells')  # list of [row, col] pairs
+
+        if cells is not None:
+            # Explicit initial pattern
+            self._grid.clear()
+            for r, c in cells:
+                if 0 <= r < self._grid.rows and 0 <= c < self._grid.cols:
+                    self._grid.set(r, c, 1)
+        elif automaton == 'cyclic':
             num_states = kwargs.get('num_states', 4)
             self._states_grid = random_states_grid(num_states=num_states)
-            # Derive initial binary grid from states
             for r in range(self._grid.rows):
                 for c in range(self._grid.cols):
                     self._grid.set(r, c, self._states_grid[r][c] != 0)
-
-        if automaton == 'elementary':
-            # Start with a single cell in the center of row 0
+        elif automaton == 'elementary':
             self._grid.clear()
             self._grid.set(0, self._grid.cols // 2, 1)
+        else:
+            self._grid.randomize(kwargs.get('density', 0.4))
 
     def start(self):
         """Start the automaton in a background thread."""
