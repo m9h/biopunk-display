@@ -1,8 +1,0 @@
-# coding: utf-8
-from video import video
-
-
-while True:
-    video.display_video("barber-pole-10s.mov")
-    video.display_video("rocket-mick.mov")
-

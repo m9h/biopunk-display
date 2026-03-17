@@ -41,3 +41,15 @@ class Config:
     ANTHROPIC_API_KEY = os.environ.get('ANTHROPIC_API_KEY')
     OPENCLAW_MODEL = os.environ.get('OPENCLAW_MODEL', 'claude-sonnet-4-6')
     OPENCLAW_ENABLED = os.environ.get('OPENCLAW_ENABLED', 'false').lower() == 'true'
+
+
+class ProductionConfig(Config):
+    SECRET_KEY = os.environ.get('SECRET_KEY')  # must be set before running
+    SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL') or \
+        'sqlite:///' + os.path.join(basedir, 'biopunk.db')
+
+
+class TestConfig(Config):
+    TESTING = True
+    SQLALCHEMY_DATABASE_URI = 'sqlite://'
+    FLIPDOT_PORT = None

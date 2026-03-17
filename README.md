@@ -1,202 +1,324 @@
-# Flip Dot Display Library #
+# 🧬 Biopunk Flipdot Display
 
-This is a python library to power MAYA's flip dot display. It includes the ability to display basic text, video,
-textual transitions, display text from Twitter, and run a Twitter based scavenger hunt game.
+<div align="center">
 
-## Installation ##
+![Python](https://img.shields.io/badge/Python-3.11+-3776AB?style=for-the-badge&logo=python&logoColor=white)
+![Flask](https://img.shields.io/badge/Flask-3.0-000000?style=for-the-badge&logo=flask&logoColor=white)
+![Raspberry Pi](https://img.shields.io/badge/Raspberry%20Pi%204-A22846?style=for-the-badge&logo=raspberrypi&logoColor=white)
+![License](https://img.shields.io/badge/License-MIT-00ff41?style=for-the-badge)
 
-There are several requirements that must be installed for this package to be fully functional.
+**A cyberpunk-inspired interactive flipdot display server built as an educational Flask project.**
 
-*   pySerial -- Used for communication to the flip dots.
-*   PIL -- Used by the video module to convert images to bitmaps to be displayed.
-*   Twython -- Used for communicating to Twitter.
-*   Requests -- Used by Twython, needed to catch connection errors being thrown by Twython.
-*   FFMPEG -- To convert videos into frames to display.
-
-Once the requirements are fulfilled, installation is as simple as:
+*Electromagnetic pixels. Real-time input. Biopunk aesthetic.*
 
 ```
-git clone git@git.eng.maya.com:flipdots.git
+ ╔══════════════════════════════════════════════════════╗
+ ║  ● ○ ● ● ○ ● ●   B I O P U N K   ● ● ○ ● ● ○ ●  ║
+ ║  ○ ● ○ ○ ● ○ ○   D I S P L A Y   ○ ○ ● ○ ○ ● ○  ║
+ ╚══════════════════════════════════════════════════════╝
 ```
 
-or
+</div>
+
+---
+
+## 🎯 What Is This?
+
+A **Flask web application** that drives a physical 7×105 electromagnetic flipdot display through multiple input channels — web UI, REST API, voice commands, hand gestures, and webcam presence detection. Every pixel physically flips between black and yellow with a satisfying click.
+
+Built as a **hands-on educational project** following the structure of Miguel Grinberg's [Flask Mega-Tutorial](https://blog.miguelgrinberg.com/post/the-flask-mega-tutorial-part-i-hello-world), adapted for hardware hacking and creative coding.
+
+### 🏗️ Architecture
 
 ```
-svn checkout https://YOURUSERNAMEHERE@svn.maya.com/maya_design/trunk/projects/NAMII/Rapid/FlipDots
+┌─────────────────────────────────────────────────────┐
+│                   INPUT SOURCES                      │
+│  🌐 Web UI  🎤 Voice  🖐️ Gesture  📷 Webcam  🔌 API │
+└──────────────┬──────────────────────┬───────────────┘
+               │                      │
+        ┌──────▼──────────────────────▼──────┐
+        │      ⚡ Priority Message Queue      │
+        │      (SQLite + background thread)   │
+        └──────────────┬─────────────────────┘
+                       │
+        ┌──────────────▼─────────────────────┐
+        │      🖥️ DisplayManager              │
+        │      (thread-safe hardware wrapper) │
+        └──────────────┬─────────────────────┘
+                       │
+        ┌──────────────▼─────────────────────┐
+        │   ⬛⬜⬛⬜ Flipdot Display ⬜⬛⬜⬛   │
+        │   FTDI Serial · 38400 baud          │
+        │   7 rows × 105 cols (30 visible)    │
+        └────────────────────────────────────┘
 ```
 
-## Usage ##
+---
 
-### Text ###
+## 🗺️ Development Roadmap — Flask Mega-Tutorial Chapters
 
-The following will simply display "Hello World" on the flip dots. getbytes() is usually called before sending to any
-basic text function. getbytes() will take a string and convert it into a hex string that is the raw data needed to be
-sent to the display.
+Each chapter builds on the last, turning a bare Flask app into a full interactive display server.
+
+| | Chapter | Topic | What We Build | Status |
+|---|---------|-------|---------------|--------|
+| 🟢 | **1** | Hello World | Flask app factory + `DisplayManager` wrapper + first route | ✅ Done |
+| 🟢 | **2** | Templates | Jinja2 templates with biopunk dark theme | ✅ Done |
+| 🟢 | **3** | Web Forms | `Flask-WTF` message form with transition picker | ✅ Done |
+| 🟢 | **4** | Database | `Flask-SQLAlchemy` Message model + SQLite persistence | ✅ Done |
+| 🟢 | **5** | Message Queue | Priority queue + background scheduler thread | ✅ Done |
+| 🟢 | **6** | Bootstrap UI | Bootstrap 5 dark theme, green-on-black biopunk aesthetic | ✅ Done |
+| 🟢 | **7** | Voice Input | Vosk offline speech recognition via Blue Yeti mic | ✅ Done |
+| 🟢 | **8** | Gesture Input | Leap Motion hand tracking → display commands | ✅ Done |
+| 🟢 | **9** | Webcam | OpenCV presence detection via LifeCam HD-3000 | ✅ Done |
+| ⚪ | **10** | User Auth | `Flask-Login` for multi-user access control | ⬚ Planned |
+| ⚪ | **11** | REST API | Full CRUD API blueprint (groundwork already in place) | ⬚ Planned |
+| 🟢 | **12** | Playlists | Playlist-as-data: JSON-defined display sequences | ✅ Done |
+| ⚪ | **13** | Deployment | `systemd` service, auto-start on boot | ⬚ Planned |
+| 🟢 | **14** | OpenClaw AI | Claude API tool_use agent + autonomous mode | ✅ Done |
+
+---
+
+## 🖥️ Hardware
+
+| Component | Role | Interface |
+|-----------|------|-----------|
+| **Raspberry Pi 4B** (4GB) | Server brain | Fedora 42 aarch64 |
+| **Flipdot Panel** (7×105) | The display! Electromagnetic pixels | FTDI USB serial `/dev/ttyUSB0` @ 38400 baud |
+| **Leap Motion** | Hand gesture input | USB `f182:0003` |
+| **Blue Yeti** | Voice commands (offline via Vosk) | USB audio card 3 |
+| **LifeCam HD-3000** | Presence detection | `/dev/video0` |
+
+---
+
+## 🚀 Quick Start
+
+```bash
+# Clone
+git clone https://github.com/m9h/biopunk-display.git
+cd biopunk-display
+
+# Install dependencies
+python3 -m venv venv
+source venv/bin/activate
+pip install -r requirements.txt
+
+# Initialize the database
+flask db init
+flask db migrate -m "initial"
+flask db upgrade
+
+# Run the server
+flask run
+```
+
+Then open **http://localhost:5000** — type a message, pick a transition effect, and watch it flip!
+
+> **Note:** Without the physical flipdot display connected, the app runs in graceful-degradation mode — messages are queued and logged but no serial output is sent.
+
+---
+
+## 📂 Project Structure
+
+```
+biopunk-display/
+├── app/
+│   ├── __init__.py          # App factory — wires everything together
+│   ├── models.py            # Message model (SQLAlchemy)
+│   ├── main/                # Web UI blueprint
+│   │   ├── routes.py        # GET/POST / and /clear
+│   │   └── forms.py         # MessageForm (WTForms)
+│   ├── api/                 # REST API blueprint
+│   │   └── routes.py        # /api/messages, /api/display/*, /api/playlists, /api/openclaw
+│   ├── display/             # Hardware abstraction
+│   │   ├── manager.py       # Thread-safe DisplayManager
+│   │   ├── queue.py         # Priority message queue + worker
+│   │   ├── playlist.py      # JSON playlist loader/player (Ch.12)
+│   │   └── fonts.py         # Double-height 14px font rendering
+│   ├── inputs/              # Sensor input modules
+│   │   ├── voice.py         # Vosk speech-to-text (Ch.7)
+│   │   ├── gesture.py       # Leap Motion gestures (Ch.8)
+│   │   ├── webcam.py        # Presence detection (Ch.9)
+│   │   └── webhook.py       # External webhook processor
+│   ├── openclaw/            # AI agent layer (Ch.14)
+│   │   ├── agent.py         # Claude API tool_use agent
+│   │   └── autonomous.py    # Periodic autonomous mode loop
+│   └── templates/
+│       ├── base.html        # Bootstrap 5 dark biopunk theme
+│       └── index.html       # Dashboard: send messages + history
+├── core/
+│   └── core.py              # WorkingFlipdotCore — serial comms, char dict
+├── transition/
+│   └── transition.py        # Transition effects (scroll, dissolve, matrix, etc.)
+├── docs/                    # Educational chapter write-ups
+├── playlists/               # JSON playlist files
+├── migrations/              # Flask-Migrate (Alembic) DB migrations
+├── config.py                # Flask configuration (env var overrides)
+├── biopunk.py               # Entry point (flask run)
+├── requirements.txt         # Python dependencies
+└── .flaskenv                # Flask environment vars
+```
+
+---
+
+## 🎨 Transition Effects
+
+The flipdot display supports multiple transition animations:
+
+| Effect | Description |
+|--------|-------------|
+| `righttoleft` | Classic scrolling text |
+| `typewriter` | Character-by-character reveal |
+| `matrix_effect` | Matrix-style rain |
+| `dissolve` | Random pixel dissolve |
+| `magichat` | Magic hat reveal |
+| `pop` | Pop-in animation |
+| `bounce` | Bouncing entrance |
+| `slide_in_left` | Slide from left |
+| `amdissolve` | Alternating dissolve |
+
+---
+
+## 🔌 API Examples
+
+```bash
+# Send a message
+curl -X POST http://localhost:5000/api/messages \
+  -H "Content-Type: application/json" \
+  -d '{"body": "HELLO WORLD", "transition": "typewriter"}'
+
+# List messages
+curl http://localhost:5000/api/messages
+
+# Check display status
+curl http://localhost:5000/api/display/status
+
+# Clear display
+curl -X POST http://localhost:5000/api/display/clear
+```
+
+---
+
+## 🧪 Built With
+
+- **[Flask](https://flask.palletsprojects.com/)** — lightweight Python web framework
+- **[Flask-SQLAlchemy](https://flask-sqlalchemy.palletsprojects.com/)** — ORM for message persistence
+- **[Flask-Migrate](https://flask-migrate.readthedocs.io/)** — Alembic database migrations
+- **[Flask-WTF](https://flask-wtf.readthedocs.io/)** — form handling & CSRF protection
+- **[Bootstrap 5](https://getbootstrap.com/)** — responsive dark theme UI
+- **[pyserial](https://pyserial.readthedocs.io/)** — FTDI serial communication
+
+---
+
+## History
+
+This display has lived several lives. Each unit/module/panel is 5 dots wide and 7 high.
+
+**SXSW — Pepsico Display.** The display was originally configured as a 16ft, 29-panel,
+145-column horizontal display at SXSW for Pepsico. The original wiring harness is wired
+for this single long row.
+
+**NAMII Booth (Jun 10-12, 2013).** Reconfigured into a 12ft, 21-panel, 105-column
+vertical display plus a 4ft, 6-panel, 30-column vertical display. The codebase was
+adapted for two separate controllers and two USB-to-serial devices. Most of the
+original transitions and video playback code were designed for this vertical layout.
+
+**Burning Man 2018 — Benderbot.** Mickey and Zen reconfigured the display into a curved
+panel (2 units high by 6 units wide) fitted into the rear window of Mick's 1950 Flying
+Cloud airstream. The playlist was a set of animated eyes with different expressions.
+
+**Biopunk Lab (2025-present).** Now running as a 7-row by 30-column visible display
+on a Raspberry Pi 4, driven by this Flask application.
+
+---
+
+## Serial Protocol Reference
+
+This section documents the low-level serial protocol for programming the flipdot
+controller directly. The Flask app abstracts all of this behind `DisplayManager` and
+`WorkingFlipdotCore`, but understanding the protocol is essential for debugging and
+writing new transition effects.
+
+### Panel Layout
+
+Each panel is 5 dots wide and 7 high. Columns are addressed with bytes between
+`0x00` and `0x7f` (7 bits for 7 rows). Columns are addressed from the bottom up:
+
+```
+0x40  .  row 6 (top)
+0x20  .  row 5
+0x10  .  row 4
+0x08  .  row 3
+0x04  .  row 2
+0x02  .  row 1
+0x01  O  row 0 (bottom)      ← 0x01 lights this dot
+```
+
+### Fill Messages
+
+Every time a data byte (`< 0x80`) is sent, the controller writes it to the current
+column and auto-increments the cursor. To fill 5 columns solid white:
 
 ```python
-from core import core
-
-core.fill(core.getbytes("Hello World"))
+ser.write(b'\x7f\x7f\x7f\x7f\x7f')
 ```
 
-### Video ###
+### Control Messages
 
-To display a video either put the frames directly into the video/frames directory or place the video into the
-video/videos directory. Supported video types, are those supported by your FFMPEG install and supported frame formats
-are those supported by your local PIL install.
+Any byte `>= 0x81` is a control message:
+
+- **First control byte = column set.** `0x81` = column 0, `0x82` = column 1, etc.
+- **Second control byte = row set.** `0x81` = row 0, `0x82` = row 1.
+
+To position the cursor at row 0, column 0: send `0x81 0x81`.
+To position at row 1, column 0: send `0x81 0x82`.
+
+### Row Break
+
+The controller's first row has 75 addressable columns; the second has 70. When
+filling the full 105-column buffer, you must reset at column 75:
 
 ```python
-from video import video
+TCOLUMN = 105
+ROW_BREAK = 75
+reset = b'\x81'
+row1 = b'\x81'
+row2 = b'\x82'
 
-video.convert_video_to_frames("VIDEONAMEHERE.mov")
-video.display_video("VIDEONAMEHERE.mov")
-```
-
-In the above example convert_video_to_frames the VIDEONAMEHERE.mov video from the video/videos directory and creates
-a directory ("video/frames/VIDEONAMEHERE.mov") where it stores the videos frames. display_video uses its parameter to
-find a directory in video/frames that matches it. It then will go through each frame at 12 FPS and display each frame
-on the flip dots. 12 FPS is about the quickest the flip dot display can turn.
-
-### Twitter ###
-
-The example below will take any direct messages sent to [@flipdots](https://twitter.com/flipdots) and display them
-on the flip dot display.
-
-```python
-from twitter import twitter
-
-twitter.display_direct_messages()
-```
-
-display_direct_messages uses a hashtag system to change the transitions used to display the message. For example, you
-send the tweet:
-
-```
-@flipdots Mickey McManus #upnext
-```
-
-The above will use the upnext transition, defined in the transition/transition.py file to display the text
-"Mickey McManus".
-
-You can also specify several transitions and it will choose a random one to use. If no hashtags are used, it will just
-use the randomgeneral transition.
-
-### Scavenger Hunt ###
-
-Scavenger hunt has quite a bit of bugs, and was never fully tested, but it is a base first pass example of how it could
-be done. The premise of the game is that clues/riddles would be displayed on the board and people would mention
-@[@flipdots](https://twitter.com/flipdots) in a tweet with the key/answer as a hashtag, along with a hashtag identifier
-for the clue/riddle.
-
-scavengerhuntbackend.py should be run constantly in the background to make updates to the puzzle and data file. This
-script checks Twitter every minute and grabs all mentions of @[@flipdots](https://twitter.com/flipdots). It then parses
-them looking for hashtags for the puzzle name and key, if one or both are not found or incorrect, it will send a tweet
-to the user with a negative response. If the key and puzzle match, it will update the user's data and remove a key from
-the puzzle's JSON file.
-
-Example usage:
-
-```
-python scavengerhuntbackend.py
-```
-
-```python
-from games.scavengerhunt import scavengerhunt
-
-scavengerhunt.display_leader_board()    #Displays the current standings
-
-scavengerhunt.display_riddle()          #Displays the next riddle in line
-```
-
-## Flip Dot Display Notes ##
-
-### Last Used ###
-Flip Dot Display Notes Each unit/module/panel of flip dots is 5 dots wide and 7 high.
-
-Last Used The flip dot display was used by Mickey and Zen at Burning Man 2018 for the airstream "Benderbot" costume for Mick's 1950 Flying Cloud. It was reconfigured into a curved panel of 2 flip dot units high by 6 flip dot units long to fit within the rear window of the airpstream and the playlist was a set of eyes that had different expressions.
-
-Before that, the flip dot display was used for NAMII's booth Jun 10-12th 2013, the booth was composed of a 12ft, 21 panel, 105 column vertical display and a 4ft, 6 panel, 30 column vertical display. The codebase was adapted to this setup. Most of the movies/transitions/etc take advantage of this vertical display setup. Furthermore, it was coded to work with two separate controllers and two separate USB to serial devices. Further adaption of the lower level core commands would need to be changed to be used in a different setup. Probably even wiring harness adaptions as well.
-
-Before that, the display was originally used as a 16ft, 29 panel, 145 column horizontal display at SXSW for the Pepsico display. The original wiring harness, is wired for this one long single row display. Flip Dot Display Library This is a python library to power MAYA's flip dot display. It includes the ability to display basic text, video, textual transitions, display text from Twitter, and run a Twitter based scavenger hunt game.
-
-
-### USB to Serial ###
-
-When using the blue USB serial adapters on a Mac, you must install the
-[FTDI driver](http://www.ftdichip.com/Drivers/VCP.htm). One of them is labelled "main"
-(was used on the large 12ft display, used by most commands), the other "secondary"
-(was used on the small 4ft display, used only by the clockcore commands).
-
-### Controller Specifics ###
-
-Each controller has two "rows". The first row has 75 addressable columns and the second has 70 addressable columns. The
-first panel is at the bottom right, the second is bottom left, the third is next row up on the right. It goes in this
-pattern up the board. For the large harness, there is a Sharpied number on the connector and on the board that indicate
-positioning.
-
-
-### Serial ###
-
-#### Fill Messages ####
-
-Each panel is 5 dots wide and 7 high. They are drawn using hex between 0x00 and 0x7f (0xff being if
-it was 8 high). The columns are addressed from the bottom up. For example, 0x01 would produce:
-
-```
-. . . . .
-. . . . .
-. . . . .
-. . . . .
-. . . . .
-. . . . .
-0 . . . .
-```
-
-0x02 would produce:
-
-```
-. . . . .
-. . . . .
-. . . . .
-. . . . .
-. . . . .
-0 . . . .
-. . . . .
-```
-
-Every time a message is sent to the controller, it increments the column automatically. So if the column counter started
-at 0, the first message would fill the first column, the next would fill the second and so forth.
-
-#### Column Set ####
-
-A control message is considered 0x81 or greater. The first control message is always considered a column setter. To move
-the column cursor to the first column of the current row, you would send 0x81. If you wanted the column cursor to point
-to the second column of the current row, you would send it 0x82.
-
-#### Row Set ####
-
-The second control message, if sent at all, is a row set. For our controller, that only has two rows, the first row is
-0x81 and the second is 0x82. Remember, to set a row you must always send a column control message as well. To set the
-cursor to the first row and column, you would send 0x81 followed by 0x81. To set it to the second row first column, you
-would send 0x81 followed by 0x82.
-
-#### Caveat ####
-
-The column does indeed auto increment, so if you want to fill the first 5 rows completely with all white dots you would
-just send 5 messages, all of them being 0x7f. However, once you ge21t to the end of the first row, in our particular
-controllers case that is column 75 or 0xcc, you need to move onto the next row. If you look at the fill function,
-it shows how this is done.
-
-```python
-def fill(m,fillmask=127):
-    ser_main.write(reset+row1)
-    for i in range(len(m)):
+def fill(message, fillmask=127):
+    ser.write(reset + row1)
+    for i in range(len(message)):
         if i == ROW_BREAK:
-            ser_main.write(reset+row2)
-        ser_main.write(chr(ord(m[i])&fillmask))
-    return m
+            ser.write(reset + row2)
+        ser.write(bytes([message[i] & fillmask]))
 ```
 
-Where ROW_BREAK is 75, reset is 0x81, and row1 is 0x82.
+### USB-to-Serial
 
+The display uses FTDI USB serial adapters. On Linux (Raspberry Pi): `/dev/ttyUSB0`
+at 38400 baud. On macOS: requires the
+[FTDI VCP driver](http://www.ftdichip.com/Drivers/VCP.htm), device appears as
+`/dev/tty.usbserial-*`.
 
+### Display Constants
+
+```python
+TROW = 7          # Rows in the display
+TCOLUMN = 105     # Total addressable columns
+ROW_BREAK = 75    # Column where row 2 begins
+BITMASK = [1, 2, 4, 8, 0x10, 0x20, 0x40]  # Bit per row (bottom to top)
+```
+
+---
+
+<div align="center">
+
+```
+⬛⬜⬛⬜⬛⬜⬛⬜⬛⬜⬛⬜⬛⬜⬛⬜⬛⬜⬛⬜⬛⬜⬛⬜⬛⬜⬛⬜⬛⬜
+⬜⬛⬜⬛⬜⬛⬜⬛⬜⬛⬜⬛⬜⬛⬜⬛⬜⬛⬜⬛⬜⬛⬜⬛⬜⬛⬜⬛⬜⬛
+```
+
+*Every pixel clicks. Every message matters.*
+
+**[m9h](https://github.com/m9h)** · Raspberry Pi 4 · Fedora 42 · Flask Mega-Tutorial
+
+</div>
