@@ -1,8 +1,9 @@
-from flask import render_template, flash, redirect, url_for, current_app
+from flask import render_template, flash, redirect, url_for, request, current_app
+from flask_login import current_user, login_user, logout_user, login_required
 from app import db
 from app.main import bp
-from app.main.forms import MessageForm
-from app.models import Message
+from app.main.forms import MessageForm, LoginForm, RegistrationForm
+from app.models import Message, User
 
 
 @bp.route('/', methods=['GET', 'POST'])
@@ -11,7 +12,11 @@ def index():
     form.transition.choices = [(t, t) for t in current_app.display.available_transitions()]
 
     if form.validate_on_submit():
-        msg = Message(body=form.message.data, transition=form.transition.data, source='web')
+        if not current_user.is_authenticated:
+            flash('Please log in to send messages.', 'warning')
+            return redirect(url_for('main.login'))
+        msg = Message(body=form.message.data, transition=form.transition.data,
+                      source='web', user_id=current_user.id)
         db.session.add(msg)
         db.session.commit()
         current_app.message_queue.enqueue(
@@ -25,7 +30,45 @@ def index():
 
 
 @bp.route('/clear', methods=['POST'])
+@login_required
 def clear():
     current_app.display.clear()
     flash('Display cleared.', 'info')
     return redirect(url_for('main.index'))
+
+
+@bp.route('/login', methods=['GET', 'POST'])
+def login():
+    if current_user.is_authenticated:
+        return redirect(url_for('main.index'))
+    form = LoginForm()
+    if form.validate_on_submit():
+        user = User.query.filter_by(username=form.username.data).first()
+        if user is None or not user.check_password(form.password.data):
+            flash('Invalid username or password.', 'warning')
+            return redirect(url_for('main.login'))
+        login_user(user)
+        next_page = request.args.get('next')
+        return redirect(next_page or url_for('main.index'))
+    return render_template('login.html', form=form)
+
+
+@bp.route('/logout')
+def logout():
+    logout_user()
+    return redirect(url_for('main.index'))
+
+
+@bp.route('/register', methods=['GET', 'POST'])
+def register():
+    if current_user.is_authenticated:
+        return redirect(url_for('main.index'))
+    form = RegistrationForm()
+    if form.validate_on_submit():
+        user = User(username=form.username.data)
+        user.set_password(form.password.data)
+        db.session.add(user)
+        db.session.commit()
+        flash(f'Welcome, {user.username}! You can now log in.', 'success')
+        return redirect(url_for('main.login'))
+    return render_template('register.html', form=form)

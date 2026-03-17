@@ -53,3 +53,4 @@ class TestConfig(Config):
     TESTING = True
     SQLALCHEMY_DATABASE_URI = 'sqlite://'
     FLIPDOT_PORT = None
+    WTF_CSRF_ENABLED = False

@@ -54,7 +54,15 @@
   <nav class="navbar navbar-dark mb-4">
     <div class="container">
       <a class="navbar-brand" href="/">&#9632; BIOPUNK FLIPDOT</a>
-      <span class="navbar-text small" id="queue-badge"></span>
+      <div class="d-flex align-items-center gap-3">
+        <span class="navbar-text small" id="queue-badge"></span>
+        {% if current_user.is_authenticated %}
+          <span class="navbar-text small" style="color: var(--bio-dim);">{{ current_user.username }}</span>
+          <a href="{{ url_for('main.logout') }}" class="btn btn-outline-bio btn-sm">Logout</a>
+        {% else %}
+          <a href="{{ url_for('main.login') }}" class="btn btn-outline-bio btn-sm">Login</a>
+        {% endif %}
+      </div>
     </div>
   </nav>
 
