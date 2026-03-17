@@ -172,3 +172,72 @@ def openclaw_auto_status():
         'enabled': current_app.openclaw is not None,
         'autonomous_running': auto.is_running if auto else False,
     })
+
+
+# -- Cellular Automata endpoints --
+
+@bp.route('/automata/start', methods=['POST'])
+def automata_start():
+    """Start a cellular automaton on the display.
+
+    JSON body (all optional):
+      automaton: "life" | "brain" | "elementary" | "cyclic" (default: "life")
+      speed: seconds between generations (default: 0.3)
+      rule: Wolfram rule number for elementary CA (default: 30)
+      density: initial fill density 0.0-1.0 (default: 0.4)
+      num_states: states for cyclic CA (default: 4)
+      threshold: neighbor threshold for cyclic CA (default: 1)
+    """
+    # Stop any running automaton first
+    player = getattr(current_app, '_automata_player', None)
+    if player and player.is_running:
+        player.stop()
+
+    data = request.get_json() or {}
+    automaton = data.get('automaton', 'life')
+    if automaton not in ('life', 'brain', 'elementary', 'cyclic'):
+        return jsonify({'error': 'automaton must be life, brain, elementary, or cyclic'}), 400
+
+    speed = float(data.get('speed', 0.3))
+    kwargs = {}
+    if 'density' in data:
+        kwargs['density'] = float(data['density'])
+    if 'rule' in data:
+        kwargs['rule'] = int(data['rule'])
+    if 'num_states' in data:
+        kwargs['num_states'] = int(data['num_states'])
+    if 'threshold' in data:
+        kwargs['threshold'] = int(data['threshold'])
+
+    from app.display.automata import AutomataPlayer
+    player = AutomataPlayer(current_app, automaton=automaton, speed=speed, **kwargs)
+    player.start()
+    current_app._automata_player = player
+
+    return jsonify({
+        'status': 'running',
+        'automaton': automaton,
+        'speed': speed,
+        **kwargs,
+    })
+
+
+@bp.route('/automata/stop', methods=['POST'])
+def automata_stop():
+    """Stop the running cellular automaton."""
+    player = getattr(current_app, '_automata_player', None)
+    if player and player.is_running:
+        player.stop()
+        current_app.display.clear()
+        return jsonify({'status': 'stopped'})
+    return jsonify({'status': 'not running'})
+
+
+@bp.route('/automata/status', methods=['GET'])
+def automata_status():
+    """Check if a cellular automaton is running."""
+    player = getattr(current_app, '_automata_player', None)
+    return jsonify({
+        'running': player.is_running if player else False,
+        'automaton': player._automaton if player and player.is_running else None,
+    })
