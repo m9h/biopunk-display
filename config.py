@@ -45,3 +45,16 @@ class Config:
 
     # Generative art (Chapter 15)
     GENERATOR_TICK_RATE = float(os.environ.get('GENERATOR_TICK_RATE', 0.3))
+
+
+class ProductionConfig(Config):
+    SECRET_KEY = os.environ.get('SECRET_KEY')  # must be set before running
+    SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL') or \
+        'sqlite:///' + os.path.join(basedir, 'biopunk.db')
+
+
+class TestConfig(Config):
+    TESTING = True
+    SQLALCHEMY_DATABASE_URI = 'sqlite://'
+    FLIPDOT_PORT = None
+    WTF_CSRF_ENABLED = False

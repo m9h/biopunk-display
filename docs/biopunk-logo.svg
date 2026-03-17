@@ -1,0 +1,57 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 200">
+  <rect width="600" height="200" fill="#0a0a0a"/>
+
+  <!-- Flipdot grid background (faded) -->
+  <g opacity="0.15">
+    <!-- 7 rows x 20 cols of dots -->
+    <g fill="#00ff41">
+      <!-- Row 0 -->
+      <circle cx="30" cy="30" r="4"/><circle cx="50" cy="30" r="4"/><circle cx="70" cy="30" r="4"/><circle cx="90" cy="30" r="4"/><circle cx="110" cy="30" r="4"/><circle cx="130" cy="30" r="4"/><circle cx="150" cy="30" r="4"/><circle cx="170" cy="30" r="4"/><circle cx="190" cy="30" r="4"/><circle cx="210" cy="30" r="4"/>
+      <circle cx="390" cy="30" r="4"/><circle cx="410" cy="30" r="4"/><circle cx="430" cy="30" r="4"/><circle cx="450" cy="30" r="4"/><circle cx="470" cy="30" r="4"/><circle cx="490" cy="30" r="4"/><circle cx="510" cy="30" r="4"/><circle cx="530" cy="30" r="4"/><circle cx="550" cy="30" r="4"/><circle cx="570" cy="30" r="4"/>
+      <!-- Row 1 -->
+      <circle cx="30" cy="50" r="4"/><circle cx="50" cy="50" r="4"/><circle cx="70" cy="50" r="4"/><circle cx="90" cy="50" r="4"/><circle cx="110" cy="50" r="4"/><circle cx="130" cy="50" r="4"/><circle cx="150" cy="50" r="4"/><circle cx="170" cy="50" r="4"/><circle cx="190" cy="50" r="4"/><circle cx="210" cy="50" r="4"/>
+      <circle cx="390" cy="50" r="4"/><circle cx="410" cy="50" r="4"/><circle cx="430" cy="50" r="4"/><circle cx="450" cy="50" r="4"/><circle cx="470" cy="50" r="4"/><circle cx="490" cy="50" r="4"/><circle cx="510" cy="50" r="4"/><circle cx="530" cy="50" r="4"/><circle cx="550" cy="50" r="4"/><circle cx="570" cy="50" r="4"/>
+      <!-- Row 2 -->
+      <circle cx="30" cy="70" r="4"/><circle cx="50" cy="70" r="4"/><circle cx="70" cy="70" r="4"/><circle cx="90" cy="70" r="4"/><circle cx="110" cy="70" r="4"/><circle cx="130" cy="70" r="4"/><circle cx="150" cy="70" r="4"/><circle cx="170" cy="70" r="4"/><circle cx="190" cy="70" r="4"/><circle cx="210" cy="70" r="4"/>
+      <circle cx="390" cy="70" r="4"/><circle cx="410" cy="70" r="4"/><circle cx="430" cy="70" r="4"/><circle cx="450" cy="70" r="4"/><circle cx="470" cy="70" r="4"/><circle cx="490" cy="70" r="4"/><circle cx="510" cy="70" r="4"/><circle cx="530" cy="70" r="4"/><circle cx="550" cy="70" r="4"/><circle cx="570" cy="70" r="4"/>
+      <!-- Row 3 -->
+      <circle cx="30" cy="90" r="4"/><circle cx="50" cy="90" r="4"/><circle cx="70" cy="90" r="4"/><circle cx="90" cy="90" r="4"/><circle cx="110" cy="90" r="4"/><circle cx="130" cy="90" r="4"/><circle cx="150" cy="90" r="4"/><circle cx="170" cy="90" r="4"/><circle cx="190" cy="90" r="4"/><circle cx="210" cy="90" r="4"/>
+      <circle cx="390" cy="90" r="4"/><circle cx="410" cy="90" r="4"/><circle cx="430" cy="90" r="4"/><circle cx="450" cy="90" r="4"/><circle cx="470" cy="90" r="4"/><circle cx="490" cy="90" r="4"/><circle cx="510" cy="90" r="4"/><circle cx="530" cy="90" r="4"/><circle cx="550" cy="90" r="4"/><circle cx="570" cy="90" r="4"/>
+      <!-- Row 4 -->
+      <circle cx="30" cy="110" r="4"/><circle cx="50" cy="110" r="4"/><circle cx="70" cy="110" r="4"/><circle cx="90" cy="110" r="4"/><circle cx="110" cy="110" r="4"/><circle cx="130" cy="110" r="4"/><circle cx="150" cy="110" r="4"/><circle cx="170" cy="110" r="4"/><circle cx="190" cy="110" r="4"/><circle cx="210" cy="110" r="4"/>
+      <circle cx="390" cy="110" r="4"/><circle cx="410" cy="110" r="4"/><circle cx="430" cy="110" r="4"/><circle cx="450" cy="110" r="4"/><circle cx="470" cy="110" r="4"/><circle cx="490" cy="110" r="4"/><circle cx="510" cy="110" r="4"/><circle cx="530" cy="110" r="4"/><circle cx="550" cy="110" r="4"/><circle cx="570" cy="110" r="4"/>
+      <!-- Row 5 -->
+      <circle cx="30" cy="130" r="4"/><circle cx="50" cy="130" r="4"/><circle cx="70" cy="130" r="4"/><circle cx="90" cy="130" r="4"/><circle cx="110" cy="130" r="4"/><circle cx="130" cy="130" r="4"/><circle cx="150" cy="130" r="4"/><circle cx="170" cy="130" r="4"/><circle cx="190" cy="130" r="4"/><circle cx="210" cy="130" r="4"/>
+      <circle cx="390" cy="130" r="4"/><circle cx="410" cy="130" r="4"/><circle cx="430" cy="130" r="4"/><circle cx="450" cy="130" r="4"/><circle cx="470" cy="130" r="4"/><circle cx="490" cy="130" r="4"/><circle cx="510" cy="130" r="4"/><circle cx="530" cy="130" r="4"/><circle cx="550" cy="130" r="4"/><circle cx="570" cy="130" r="4"/>
+      <!-- Row 6 -->
+      <circle cx="30" cy="150" r="4"/><circle cx="50" cy="150" r="4"/><circle cx="70" cy="150" r="4"/><circle cx="90" cy="150" r="4"/><circle cx="110" cy="150" r="4"/><circle cx="130" cy="150" r="4"/><circle cx="150" cy="150" r="4"/><circle cx="170" cy="150" r="4"/><circle cx="190" cy="150" r="4"/><circle cx="210" cy="150" r="4"/>
+      <circle cx="390" cy="150" r="4"/><circle cx="410" cy="150" r="4"/><circle cx="430" cy="150" r="4"/><circle cx="450" cy="150" r="4"/><circle cx="470" cy="150" r="4"/><circle cx="490" cy="150" r="4"/><circle cx="510" cy="150" r="4"/><circle cx="530" cy="150" r="4"/><circle cx="550" cy="150" r="4"/><circle cx="570" cy="150" r="4"/>
+    </g>
+  </g>
+
+  <!-- DNA helix (center motif) -->
+  <g stroke="#00ff41" fill="none" stroke-width="2" opacity="0.6">
+    <path d="M260,25 C280,50 320,50 340,25 C360,0 400,0 420,25 C440,50 480,50 500,25" transform="translate(-80,10)"/>
+    <path d="M260,25 C280,0 320,0 340,25 C360,50 400,50 420,25 C440,0 480,0 500,25" transform="translate(-80,10)"/>
+    <!-- Rungs -->
+    <line x1="210" y1="20" x2="210" y2="30" stroke-width="1.5"/>
+    <line x1="240" y1="28" x2="240" y2="18" stroke-width="1.5"/>
+    <line x1="270" y1="15" x2="270" y2="32" stroke-width="1.5"/>
+    <line x1="300" y1="10" x2="300" y2="35" stroke-width="1.5"/>
+    <line x1="330" y1="18" x2="330" y2="28" stroke-width="1.5"/>
+    <line x1="360" y1="28" x2="360" y2="18" stroke-width="1.5"/>
+    <line x1="390" y1="32" x2="390" y2="15" stroke-width="1.5"/>
+  </g>
+
+  <!-- Main title -->
+  <text x="300" y="95" text-anchor="middle" font-family="'Courier New', monospace" font-size="48" font-weight="bold" fill="#00ff41" letter-spacing="4">BIOPUNK</text>
+
+  <!-- Subtitle -->
+  <text x="300" y="130" text-anchor="middle" font-family="'Courier New', monospace" font-size="20" fill="#00cc33" letter-spacing="8">FLIPDOT LAB</text>
+
+  <!-- Bottom accent line -->
+  <line x1="100" y1="155" x2="500" y2="155" stroke="#00ff41" stroke-width="1" opacity="0.4"/>
+
+  <!-- Bottom tagline -->
+  <text x="300" y="178" text-anchor="middle" font-family="'Courier New', monospace" font-size="11" fill="#00ff41" opacity="0.5" letter-spacing="2">ELECTROMAGNETIC PIXELS . REAL-TIME INPUT . AI AGENT</text>
+</svg>

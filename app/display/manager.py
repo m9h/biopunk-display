@@ -19,6 +19,7 @@ class DisplayManager:
         self._core = None
         self._transitions = None
         self._lock = threading.Lock()
+        self._last_frame = bytes(105)  # last buffer sent to display
         self.app = app
         if app is not None:
             self.init_app(app)
@@ -91,8 +92,18 @@ class DisplayManager:
         with self._lock:
             self.core.display_text(text.upper(), justify=justify)
 
+    def set_frame(self, frame_bytes):
+        """Store a raw 105-byte frame (for monitor endpoint)."""
+        self._last_frame = bytes(frame_bytes[:105])
+
+    @property
+    def last_frame(self):
+        """Return the last known display frame as a list of ints."""
+        return list(self._last_frame)
+
     def clear(self):
         with self._lock:
+            self._last_frame = bytes(105)
             self.core.clear()
 
     def available_transitions(self):

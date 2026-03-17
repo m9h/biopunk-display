@@ -1,8 +1,15 @@
 # Project-specific
 app.db
 .DS_Store
+**/.DS_Store
 vosk-model/
 *.bak
+*.bak-*
+*.rtf
+*.bmp
+*.modernizedbyclaude
+*.pyclaudescrewedup
+.#*
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

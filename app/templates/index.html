@@ -1,10 +1,35 @@
 {% extends "base.html" %}
 
 {% block content %}
+<!-- Live Display Mirror -->
+<div class="row g-4 mb-4">
+  <div class="col-12">
+    <div class="card p-3">
+      <div class="d-flex justify-content-between align-items-center mb-2">
+        <h5 class="card-title mb-0">Live Display</h5>
+        <span class="small" id="display-info" style="color: var(--bio-dim);"></span>
+      </div>
+      <div class="text-center">
+        <canvas id="flipdot-canvas" width="600" height="140"
+                style="border: 1px solid #222; border-radius: 4px; image-rendering: pixelated;"></canvas>
+      </div>
+      <div class="d-flex gap-2 mt-2 flex-wrap">
+        <button class="btn btn-outline-bio btn-sm" onclick="startCA('life')">Life</button>
+        <button class="btn btn-outline-bio btn-sm" onclick="startCA('brain')">Brain</button>
+        <button class="btn btn-outline-bio btn-sm" onclick="startCA('elementary', {rule:30})">Rule 30</button>
+        <button class="btn btn-outline-bio btn-sm" onclick="startCA('elementary', {rule:90})">Rule 90</button>
+        <button class="btn btn-outline-bio btn-sm" onclick="startCA('cyclic')">Cyclic</button>
+        <button class="btn btn-outline-bio btn-sm" onclick="stopCA()">Stop CA</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <div class="row g-4">
   <div class="col-lg-6">
     <div class="card p-4">
       <h5 class="card-title mb-3">Send Message</h5>
+      {% if current_user.is_authenticated %}
       <form method="post">
         {{ form.hidden_tag() }}
 
@@ -28,6 +53,10 @@
       <form method="post" action="{{ url_for('main.clear') }}" class="mt-2">
         <button type="submit" class="btn btn-outline-bio btn-sm">Clear Display</button>
       </form>
+      {% else %}
+      <p class="mb-2"><a href="{{ url_for('main.login') }}" style="color: var(--bio-green);">Log in</a> to send messages to the display.</p>
+      <p class="mb-0 small" style="color: var(--bio-dim);">New? <a href="{{ url_for('main.register') }}" style="color: var(--bio-green);">Register</a> an account.</p>
+      {% endif %}
     </div>
   </div>
 

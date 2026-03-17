@@ -1,10 +1,20 @@
 from flask import Flask
 from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
+from flask_login import LoginManager
 from config import Config
 
 db = SQLAlchemy()
 migrate = Migrate()
+login = LoginManager()
+login.login_view = 'main.login'
+login.login_message_category = 'info'
+
+
+@login.user_loader
+def load_user(id):
+    from app.models import User
+    return db.session.get(User, int(id))
 
 
 def create_app(config_class=Config):
@@ -13,6 +23,7 @@ def create_app(config_class=Config):
 
     db.init_app(app)
     migrate.init_app(app, db)
+    login.init_app(app)
 
     # Display manager (always active)
     from app.display.manager import DisplayManager

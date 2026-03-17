@@ -1,0 +1,17 @@
+[Unit]
+Description=Biopunk Flipdot Display Server
+After=network.target
+
+[Service]
+User=mhough
+WorkingDirectory=/home/mhough/biopunk-display
+ExecStart=/home/mhough/biopunk-display/.venv/bin/gunicorn \
+    -w 1 --threads 4 -b 0.0.0.0:5000 wsgi:app
+Restart=always
+RestartSec=5
+Environment=FLASK_APP=biopunk.py
+Environment=SECRET_KEY=change-this-in-production
+Environment=FLIPDOT_PORT=/dev/ttyUSB0
+
+[Install]
+WantedBy=multi-user.target

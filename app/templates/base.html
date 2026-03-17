@@ -54,11 +54,17 @@
   <nav class="navbar navbar-dark mb-4">
     <div class="container">
       <a class="navbar-brand" href="/">&#9632; BIOPUNK FLIPDOT</a>
-      <div class="d-flex gap-3 align-items-center">
+      <div class="d-flex align-items-center gap-3">
         <a href="/workshop/submit" class="navbar-text small text-decoration-none" style="color: var(--bio-dim)">Workshop</a>
         <a href="/workshop/board" class="navbar-text small text-decoration-none" style="color: var(--bio-dim)">Board</a>
         <a href="/workshop/moderate" class="navbar-text small text-decoration-none" style="color: var(--bio-dim)">Mod</a>
         <span class="navbar-text small" id="queue-badge"></span>
+        {% if current_user.is_authenticated %}
+          <span class="navbar-text small" style="color: var(--bio-dim);">{{ current_user.username }}</span>
+          <a href="{{ url_for('main.logout') }}" class="btn btn-outline-bio btn-sm">Logout</a>
+        {% else %}
+          <a href="{{ url_for('main.login') }}" class="btn btn-outline-bio btn-sm">Login</a>
+        {% endif %}
       </div>
     </div>
   </nav>
@@ -81,5 +87,77 @@
   </div>
 
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+  <script>
+  // Flipdot display canvas renderer
+  (function() {
+    const canvas = document.getElementById('flipdot-canvas');
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    const ROWS = 7, COLS = 30;
+    const DOT_SIZE = 16, GAP = 3;
+    const ON_COLOR = '#00ff41';
+    const OFF_COLOR = '#1a1a1a';
+    const BG_COLOR = '#0a0a0a';
+
+    canvas.width = COLS * (DOT_SIZE + GAP) + GAP;
+    canvas.height = ROWS * (DOT_SIZE + GAP) + GAP;
+
+    function drawFrame(frame) {
+      ctx.fillStyle = BG_COLOR;
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      for (let c = 0; c < COLS; c++) {
+        const byte = frame[c] || 0;
+        for (let r = 0; r < ROWS; r++) {
+          // bit 6 = row 0 (top), bit 0 = row 6 (bottom)
+          const on = byte & (1 << (6 - r));
+          const x = GAP + c * (DOT_SIZE + GAP);
+          const y = GAP + r * (DOT_SIZE + GAP);
+          ctx.fillStyle = on ? ON_COLOR : OFF_COLOR;
+          ctx.beginPath();
+          ctx.roundRect(x, y, DOT_SIZE, DOT_SIZE, 2);
+          ctx.fill();
+        }
+      }
+    }
+
+    // Initial blank frame
+    drawFrame(new Array(105).fill(0));
+
+    // Poll for updates
+    let pollTimer = null;
+    function poll() {
+      fetch('/api/display/frame')
+        .then(r => r.json())
+        .then(data => {
+          drawFrame(data.frame || []);
+          const info = document.getElementById('display-info');
+          if (info) {
+            const parts = [];
+            if (data.automaton) parts.push('CA: ' + data.automaton);
+            if (data.playlist_playing) parts.push('playlist: ' + data.playlist_playing);
+            parts.push('queue: ' + (data.queue_pending || 0));
+            info.textContent = parts.join(' | ');
+          }
+        })
+        .catch(() => {});
+      pollTimer = setTimeout(poll, 250);
+    }
+    poll();
+
+    // CA control functions (used by buttons in index.html)
+    window.startCA = function(automaton, opts) {
+      const body = Object.assign({automaton: automaton, speed: 0.2}, opts || {});
+      fetch('/api/automata/start', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify(body)
+      });
+    };
+    window.stopCA = function() {
+      fetch('/api/automata/stop', {method: 'POST'});
+    };
+  })();
+  </script>
 </body>
 </html>

@@ -534,68 +534,91 @@ def init_display(port: Optional[str] = None):
             working_core.serial = None
     return working_core
 
-# Initialize on first import
-init_display()
+def _ensure_initialized():
+    """Lazily initialize the display on first use of a convenience function."""
+    global working_core
+    if working_core is None:
+        init_display()
 
 # Export functions for compatibility with existing code
 def clear():
+    _ensure_initialized()
     return working_core.clear()
 
 def getbytes(message: str, delim: bytes = dict['space'], dmult: int = 1) -> bytes:
+    _ensure_initialized()
     return working_core.getbytes(message, delim, dmult)
 
 def fill(message: bytes, fillmask: int = 127) -> bytes:
+    _ensure_initialized()
     return working_core.fill(message, fillmask)
 
 def negative(message: bytes) -> bytes:
+    _ensure_initialized()
     return working_core.negative(message)
 
 def scrollleft(message: bytes, t: float = 0.2, d: int = 1, pausedelay: Optional[float] = None, o: bool = False) -> bytes:
+    _ensure_initialized()
     return working_core.scrollleft(message, t, d, pausedelay, o)
 
 def rotateleft(message: bytes, t: float = 0.2, d: int = 1) -> bytes:
+    _ensure_initialized()
     return working_core.rotateleft(message, t, d)
 
 def rotateright(message: bytes, t: float = 0.2, d: int = 1) -> bytes:
+    _ensure_initialized()
     return working_core.rotateright(message, t, d)
 
 def scrollup(message: bytes, t: float = 0.2) -> bytes:
+    _ensure_initialized()
     return working_core.scrollup(message, t)
 
 def scrolldown(message: bytes, t: float = 0.2) -> bytes:
+    _ensure_initialized()
     return working_core.scrolldown(message, t)
 
 def fillfrombottomup(message: bytes, t: float = 0.2) -> bytes:
+    _ensure_initialized()
     return working_core.fillfrombottomup(message, t)
 
 def fillfromtopdown(message: bytes, t: float = 0.2) -> bytes:
+    _ensure_initialized()
     return working_core.fillfromtopdown(message, t)
 
 def erasefromtopdown(message: bytes, t: float = 0.2) -> bytes:
+    _ensure_initialized()
     return working_core.erasefromtopdown(message, t)
 
 def erasefrombottomup(message: bytes, t: float = 0.2) -> bytes:
+    _ensure_initialized()
     return working_core.erasefrombottomup(message, t)
 
 def fillrandomorder(message: bytes, t: float = 0.2) -> bytes:
+    _ensure_initialized()
     return working_core.fillrandomorder(message, t)
 
 def eraserandomorder(message: bytes, t: float = 0.2) -> bytes:
+    _ensure_initialized()
     return working_core.eraserandomorder(message, t)
 
 def filltypewriter(message: bytes) -> None:
+    _ensure_initialized()
     return working_core.filltypewriter(message)
 
 def fillmakerbot(message: bytes) -> None:
+    _ensure_initialized()
     return working_core.fillmakerbot(message)
 
 def flip(message: str, d: int = 1) -> None:
+    _ensure_initialized()
     return working_core.flip(message, d)
 
 def pad(message: bytes, padsym: str = '', justify: int = 3) -> bytes:
+    _ensure_initialized()
     return working_core.pad(message, padsym, justify)
 
 if __name__ == "__main__":
+    init_display()
     print("Enhanced Cross-Platform Core System")
     print("="*40)
     

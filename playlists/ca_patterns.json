@@ -1,0 +1,119 @@
+{
+  "name": "Cellular Automata Showcase",
+  "description": "Known Game of Life patterns and CA rules that fit the 7x30 display",
+  "patterns": [
+    {
+      "name": "Blinker",
+      "automaton": "life",
+      "description": "Period-2 oscillator — the simplest",
+      "cells": [[3,14],[3,15],[3,16]],
+      "speed": 0.5
+    },
+    {
+      "name": "Glider",
+      "automaton": "life",
+      "description": "Travels diagonally across the display, wrapping at edges",
+      "cells": [[0,1],[1,2],[2,0],[2,1],[2,2]],
+      "speed": 0.25
+    },
+    {
+      "name": "Lightweight Spaceship (LWSS)",
+      "automaton": "life",
+      "description": "Moves horizontally — wider than a glider",
+      "cells": [[1,1],[1,4],[2,0],[3,0],[3,4],[4,0],[4,1],[4,2],[4,3]],
+      "speed": 0.2
+    },
+    {
+      "name": "Pulsar",
+      "automaton": "life",
+      "description": "Period-3 oscillator — mesmerizing on flipdots",
+      "cells": [
+        [0,8],[0,9],[0,10],[0,14],[0,15],[0,16],
+        [2,6],[2,11],[2,13],[2,18],
+        [3,6],[3,11],[3,13],[3,18],
+        [4,6],[4,11],[4,13],[4,18],
+        [5,8],[5,9],[5,10],[5,14],[5,15],[5,16]
+      ],
+      "speed": 0.3
+    },
+    {
+      "name": "R-pentomino",
+      "automaton": "life",
+      "description": "5 cells that evolve chaotically for 1000+ generations",
+      "cells": [[2,15],[2,16],[3,14],[3,15],[4,15]],
+      "speed": 0.15
+    },
+    {
+      "name": "Acorn",
+      "automaton": "life",
+      "description": "7 cells that take 5206 generations to stabilize",
+      "cells": [[3,10],[3,12],[2,12],[4,11],[3,14],[3,15],[3,16]],
+      "speed": 0.1
+    },
+    {
+      "name": "Block + Glider",
+      "automaton": "life",
+      "description": "A glider approaches a still-life block — watch what happens",
+      "cells": [[0,1],[1,2],[2,0],[2,1],[2,2],[4,20],[4,21],[5,20],[5,21]],
+      "speed": 0.2
+    },
+    {
+      "name": "Rule 30",
+      "automaton": "elementary",
+      "rule": 30,
+      "description": "Wolfram's favorite — generates chaos from order",
+      "speed": 0.3
+    },
+    {
+      "name": "Rule 90 (Sierpinski)",
+      "automaton": "elementary",
+      "rule": 90,
+      "description": "XOR rule — produces Sierpinski triangle fractal",
+      "speed": 0.25
+    },
+    {
+      "name": "Rule 110",
+      "automaton": "elementary",
+      "rule": 110,
+      "description": "Turing-complete — complex structures from simple rules",
+      "speed": 0.2
+    },
+    {
+      "name": "Rule 184 (Traffic)",
+      "automaton": "elementary",
+      "rule": 184,
+      "description": "Models traffic flow — particles move right",
+      "speed": 0.2
+    },
+    {
+      "name": "Rule 150",
+      "automaton": "elementary",
+      "rule": 150,
+      "description": "Totalistic XOR — complex symmetric patterns",
+      "speed": 0.25
+    },
+    {
+      "name": "Brian's Brain Soup",
+      "automaton": "brain",
+      "description": "Random initial state — watch the trails form and die",
+      "density": 0.3,
+      "speed": 0.15
+    },
+    {
+      "name": "Cyclic Waves (4 states)",
+      "automaton": "cyclic",
+      "num_states": 4,
+      "threshold": 1,
+      "description": "Spiral waves emerge from random noise",
+      "speed": 0.2
+    },
+    {
+      "name": "Cyclic Waves (8 states)",
+      "automaton": "cyclic",
+      "num_states": 8,
+      "threshold": 1,
+      "description": "More states = slower, wider waves",
+      "speed": 0.15
+    }
+  ]
+}

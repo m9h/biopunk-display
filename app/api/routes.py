@@ -73,6 +73,27 @@ def clear_display():
     return jsonify({'status': 'ok'})
 
 
+@bp.route('/display/frame', methods=['GET'])
+def display_frame():
+    """Return the current display frame as a 105-element array of ints.
+
+    Each int is a column byte (0-127). First 30 = visible columns.
+    Bit 0 = bottom row (row 6), bit 6 = top row (row 0).
+    Used by the curses simulator in monitor mode.
+    """
+    player = getattr(current_app, '_automata_player', None)
+    automaton = None
+    if player and player.is_running:
+        automaton = player._automaton
+
+    return jsonify({
+        'frame': current_app.display.last_frame,
+        'queue_pending': current_app.message_queue.pending,
+        'playlist_playing': current_app.playlists.now_playing,
+        'automaton': automaton,
+    })
+
+
 # -- Playlist endpoints (Chapter 12) --
 
 @bp.route('/playlists', methods=['GET'])
@@ -240,3 +261,142 @@ def stop_all_streams():
     """Stop all active data streams."""
     current_app.streams.stop_all()
     return jsonify({'status': 'all stopped'})
+
+
+# -- Cellular Automata endpoints (legacy, from remote) --
+
+@bp.route('/automata/start', methods=['POST'])
+def automata_start():
+    """Start a cellular automaton on the display.
+
+    JSON body (all optional):
+      automaton: "life" | "brain" | "elementary" | "cyclic" (default: "life")
+      speed: seconds between generations (default: 0.3)
+      rule: Wolfram rule number for elementary CA (default: 30)
+      density: initial fill density 0.0-1.0 (default: 0.4)
+      num_states: states for cyclic CA (default: 4)
+      threshold: neighbor threshold for cyclic CA (default: 1)
+    """
+    # Stop any running automaton first
+    player = getattr(current_app, '_automata_player', None)
+    if player and player.is_running:
+        player.stop()
+
+    data = request.get_json() or {}
+    automaton = data.get('automaton', 'life')
+    if automaton not in ('life', 'brain', 'elementary', 'cyclic'):
+        return jsonify({'error': 'automaton must be life, brain, elementary, or cyclic'}), 400
+
+    speed = float(data.get('speed', 0.3))
+    kwargs = {}
+    if 'density' in data:
+        kwargs['density'] = float(data['density'])
+    if 'rule' in data:
+        kwargs['rule'] = int(data['rule'])
+    if 'num_states' in data:
+        kwargs['num_states'] = int(data['num_states'])
+    if 'threshold' in data:
+        kwargs['threshold'] = int(data['threshold'])
+
+    from app.display.automata import AutomataPlayer
+    player = AutomataPlayer(current_app, automaton=automaton, speed=speed, **kwargs)
+    player.start()
+    current_app._automata_player = player
+
+    return jsonify({
+        'status': 'running',
+        'automaton': automaton,
+        'speed': speed,
+        **kwargs,
+    })
+
+
+@bp.route('/automata/stop', methods=['POST'])
+def automata_stop():
+    """Stop the running cellular automaton."""
+    player = getattr(current_app, '_automata_player', None)
+    if player and player.is_running:
+        player.stop()
+        current_app.display.clear()
+        return jsonify({'status': 'stopped'})
+    return jsonify({'status': 'not running'})
+
+
+@bp.route('/automata/status', methods=['GET'])
+def automata_status():
+    """Check if a cellular automaton is running."""
+    player = getattr(current_app, '_automata_player', None)
+    return jsonify({
+        'running': player.is_running if player else False,
+        'automaton': player._automaton if player and player.is_running else None,
+    })
+
+
+@bp.route('/automata/patterns', methods=['GET'])
+def automata_patterns():
+    """List available CA patterns from the pattern library."""
+    import json
+    import os
+    path = os.path.join(current_app.config.get('PLAYLIST_DIR', 'playlists'), 'ca_patterns.json')
+    try:
+        with open(path) as f:
+            data = json.load(f)
+        patterns = [{'name': p['name'], 'automaton': p['automaton'],
+                      'description': p.get('description', '')}
+                     for p in data.get('patterns', [])]
+        return jsonify({'patterns': patterns})
+    except (FileNotFoundError, json.JSONDecodeError):
+        return jsonify({'patterns': []})
+
+
+@bp.route('/automata/patterns/<name>/play', methods=['POST'])
+def automata_play_pattern(name):
+    """Start a named pattern from the pattern library."""
+    import json
+    import os
+    path = os.path.join(current_app.config.get('PLAYLIST_DIR', 'playlists'), 'ca_patterns.json')
+    try:
+        with open(path) as f:
+            data = json.load(f)
+    except (FileNotFoundError, json.JSONDecodeError):
+        return jsonify({'error': 'pattern library not found'}), 404
+
+    # Find pattern by name (case-insensitive)
+    pattern = None
+    for p in data.get('patterns', []):
+        if p['name'].lower() == name.lower():
+            pattern = p
+            break
+    if not pattern:
+        return jsonify({'error': f'pattern "{name}" not found'}), 404
+
+    # Stop any running automaton
+    player = getattr(current_app, '_automata_player', None)
+    if player and player.is_running:
+        player.stop()
+
+    automaton = pattern['automaton']
+    speed = pattern.get('speed', 0.3)
+    kwargs = {}
+    if 'cells' in pattern:
+        kwargs['cells'] = pattern['cells']
+    if 'density' in pattern:
+        kwargs['density'] = float(pattern['density'])
+    if 'rule' in pattern:
+        kwargs['rule'] = int(pattern['rule'])
+    if 'num_states' in pattern:
+        kwargs['num_states'] = int(pattern['num_states'])
+    if 'threshold' in pattern:
+        kwargs['threshold'] = int(pattern['threshold'])
+
+    from app.display.automata import AutomataPlayer
+    player = AutomataPlayer(current_app, automaton=automaton, speed=speed, **kwargs)
+    player.start()
+    current_app._automata_player = player
+
+    return jsonify({
+        'status': 'running',
+        'pattern': pattern['name'],
+        'automaton': automaton,
+        'speed': speed,
+    })
