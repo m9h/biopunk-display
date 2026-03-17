@@ -73,6 +73,27 @@ def clear_display():
     return jsonify({'status': 'ok'})
 
 
+@bp.route('/display/frame', methods=['GET'])
+def display_frame():
+    """Return the current display frame as a 105-element array of ints.
+
+    Each int is a column byte (0-127). First 30 = visible columns.
+    Bit 0 = bottom row (row 6), bit 6 = top row (row 0).
+    Used by the curses simulator in monitor mode.
+    """
+    player = getattr(current_app, '_automata_player', None)
+    automaton = None
+    if player and player.is_running:
+        automaton = player._automaton
+
+    return jsonify({
+        'frame': current_app.display.last_frame,
+        'queue_pending': current_app.message_queue.pending,
+        'playlist_playing': current_app.playlists.now_playing,
+        'automaton': automaton,
+    })
+
+
 # -- Playlist endpoints (Chapter 12) --
 
 @bp.route('/playlists', methods=['GET'])

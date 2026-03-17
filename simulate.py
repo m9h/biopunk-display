@@ -14,8 +14,10 @@ Usage:
   python simulate.py elementary 110     # Rule 110
   python simulate.py cyclic             # Cyclic CA (4 states)
   python simulate.py text "HELLO"       # Preview text message
+  python simulate.py monitor            # Monitor live display (localhost:5000)
+  python simulate.py monitor 192.168.1.50  # Monitor remote Pi
 
-Controls:
+Controls (automata mode):
   q / ESC   — quit
   SPACE     — pause/resume
   r         — randomize grid
@@ -23,6 +25,10 @@ Controls:
   n         — next automaton
   +/-       — speed up/slow down
   1-4       — switch: 1=life, 2=brain, 3=elementary, 4=cyclic
+
+Controls (monitor mode):
+  q / ESC   — quit
+  +/-       — poll speed up/slow down
 """
 
 import curses
@@ -298,11 +304,143 @@ def init_colors():
         curses.init_pair(6, curses.COLOR_GREEN, -1)
 
 
+def monitor_mode(stdscr, host):
+    """Live monitor: polls the server and renders the actual display state."""
+    import json
+    import urllib.request
+    import urllib.error
+
+    curses.curs_set(0)
+    init_colors()
+
+    base_url = f'http://{host}:5000' if ':' not in host else f'http://{host}'
+    poll_interval = 0.25  # seconds
+
+    stdscr.timeout(int(poll_interval * 1000))
+
+    frame_num = 0
+    last_error = None
+    grid = Grid(ROWS, COLS)
+    server_info = {}
+
+    while True:
+        # Poll server
+        try:
+            req = urllib.request.Request(f'{base_url}/api/display/frame')
+            with urllib.request.urlopen(req, timeout=2) as resp:
+                data = json.loads(resp.read())
+            frame_data = data.get('frame', [0] * 105)
+            grid = Grid.from_display_bytes(bytes(frame_data))
+            server_info = data
+            last_error = None
+            frame_num += 1
+        except (urllib.error.URLError, OSError, json.JSONDecodeError) as e:
+            last_error = str(e)[:60]
+
+        # Draw
+        stdscr.erase()
+        h, w = stdscr.getmaxyx()
+        needed_w = COLS * 2 + 4
+        needed_h = ROWS + 10
+        if h < needed_h or w < needed_w:
+            stdscr.addstr(0, 0, f"Terminal too small ({w}x{h}). Need {needed_w}x{needed_h}.")
+            stdscr.refresh()
+            key = stdscr.getch()
+            if key in (ord('q'), ord('Q'), 27):
+                break
+            continue
+
+        x_off = max(0, (w - needed_w) // 2)
+        y_off = 1
+
+        # Title
+        stdscr.attron(curses.color_pair(2))
+        stdscr.addstr(y_off, x_off, f" LIVE MONITOR \u2014 {base_url} ".center(needed_w))
+        stdscr.attroff(curses.color_pair(2))
+        y_off += 1
+
+        # Top border
+        stdscr.attron(curses.color_pair(3))
+        stdscr.addstr(y_off, x_off, "\u250c" + "\u2500" * (COLS * 2) + "\u2510")
+        stdscr.attroff(curses.color_pair(3))
+        y_off += 1
+
+        # Grid
+        for r in range(ROWS):
+            stdscr.attron(curses.color_pair(3))
+            stdscr.addstr(y_off + r, x_off, "\u2502")
+            stdscr.attroff(curses.color_pair(3))
+
+            for c in range(COLS):
+                if grid.get(r, c):
+                    stdscr.attron(curses.color_pair(1))
+                    stdscr.addstr(y_off + r, x_off + 1 + c * 2, DOT_ON)
+                    stdscr.attroff(curses.color_pair(1))
+                else:
+                    stdscr.attron(curses.color_pair(5))
+                    stdscr.addstr(y_off + r, x_off + 1 + c * 2, DOT_OFF)
+                    stdscr.attroff(curses.color_pair(5))
+
+            stdscr.attron(curses.color_pair(3))
+            stdscr.addstr(y_off + r, x_off + 1 + COLS * 2, "\u2502")
+            stdscr.attroff(curses.color_pair(3))
+
+        y_off += ROWS
+
+        # Bottom border
+        stdscr.attron(curses.color_pair(3))
+        stdscr.addstr(y_off, x_off, "\u2514" + "\u2500" * (COLS * 2) + "\u2518")
+        stdscr.attroff(curses.color_pair(3))
+        y_off += 1
+
+        # Status
+        queue = server_info.get('queue_pending', '?')
+        playlist = server_info.get('playlist_playing') or 'none'
+        automaton = server_info.get('automaton') or 'none'
+        alive = grid.count_alive()
+
+        status = f" frame:{frame_num}  dots:{alive}  queue:{queue}  playlist:{playlist}  CA:{automaton}"
+        stdscr.attron(curses.color_pair(2))
+        stdscr.addstr(y_off, x_off, status[:needed_w].ljust(needed_w))
+        stdscr.attroff(curses.color_pair(2))
+        y_off += 1
+
+        if last_error:
+            stdscr.attron(curses.color_pair(4))
+            stdscr.addstr(y_off, x_off, f" ERR: {last_error}"[:needed_w])
+            stdscr.attroff(curses.color_pair(4))
+            y_off += 1
+
+        # Help
+        stdscr.attron(curses.color_pair(6))
+        stdscr.addstr(y_off + 1, x_off, f" q:quit  +/-:poll speed ({poll_interval:.2f}s) ")
+        stdscr.attroff(curses.color_pair(6))
+
+        stdscr.refresh()
+
+        # Handle input
+        key = stdscr.getch()
+        if key in (ord('q'), ord('Q'), 27):
+            break
+        elif key in (ord('+'), ord('=')):
+            poll_interval = max(0.05, poll_interval - 0.05)
+            stdscr.timeout(int(poll_interval * 1000))
+        elif key in (ord('-'), ord('_')):
+            poll_interval = min(5.0, poll_interval + 0.05)
+            stdscr.timeout(int(poll_interval * 1000))
+
+
 def main(stdscr):
     curses.curs_set(0)
     init_colors()
 
     args = sys.argv[1:]
+
+    # Monitor mode
+    if args and args[0] == 'monitor':
+        host = args[1] if len(args) > 1 else 'localhost'
+        monitor_mode(stdscr, host)
+        return
 
     # Text preview mode
     if args and args[0] == 'text':
