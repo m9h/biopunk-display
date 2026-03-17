@@ -37,12 +37,17 @@ class DisplayManager:
             self._core = WorkingFlipdotCore(
                 port=self._port, baud=self._baud
             )
+            # Set the module-level working_core so transition functions work
+            import core.core as core_module
+            core_module.working_core = self._core
         return self._core
 
     @property
     def transitions(self):
         """Lazy-import transitions module."""
         if self._transitions is None:
+            # Ensure core is initialized first (sets working_core)
+            _ = self.core
             from transition import transition as t
             self._transitions = t
         return self._transitions
