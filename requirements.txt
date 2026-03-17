@@ -1,0 +1,17 @@
+flask
+flask-sqlalchemy
+flask-migrate
+flask-wtf
+flask-login
+python-dotenv
+pyserial
+Pillow
+# Chapter 7: Voice input
+vosk
+sounddevice
+# Chapter 8: Gesture input (Leap Motion WebSocket)
+websocket-client
+# Chapter 9: Webcam
+opencv-python-headless
+# Chapter 14: OpenClaw
+anthropic

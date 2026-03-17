@@ -1,0 +1,2 @@
+FLASK_APP=biopunk.py
+FLASK_DEBUG=1

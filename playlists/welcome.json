@@ -1,0 +1,11 @@
+{
+  "name": "Welcome Loop",
+  "repeat": true,
+  "delay_between": 5,
+  "messages": [
+    {"body": "WELCOME TO BIOPUNK LAB", "transition": "righttoleft"},
+    {"body": "HACK THE PLANET", "transition": "matrix_effect"},
+    {"body": "OPEN SOURCE HARDWARE", "transition": "typewriter"},
+    {"body": "CITY SCIENCE @ MIT", "transition": "dissolve"}
+  ]
+}

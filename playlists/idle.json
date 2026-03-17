@@ -1,0 +1,10 @@
+{
+  "name": "Idle Animation",
+  "repeat": true,
+  "delay_between": 10,
+  "messages": [
+    {"body": "BIOPUNK", "transition": "double_scroll"},
+    {"body": "...", "transition": "dissolve"},
+    {"body": "FLIPDOT", "transition": "double_typewriter"}
+  ]
+}
