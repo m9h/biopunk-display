@@ -41,3 +41,7 @@ class Config:
     ANTHROPIC_API_KEY = os.environ.get('ANTHROPIC_API_KEY')
     OPENCLAW_MODEL = os.environ.get('OPENCLAW_MODEL', 'claude-sonnet-4-6')
     OPENCLAW_ENABLED = os.environ.get('OPENCLAW_ENABLED', 'false').lower() == 'true'
+    OPENCLAW_INTERVAL = int(os.environ.get('OPENCLAW_INTERVAL', 300))
+
+    # Generative art (Chapter 15)
+    GENERATOR_TICK_RATE = float(os.environ.get('GENERATOR_TICK_RATE', 0.3))

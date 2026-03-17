@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+
+{% block title %}QR Code — Biopunk Workshop{% endblock %}
+
+{% block content %}
+<div class="text-center">
+  <h3 class="mb-4">&#9632; SCAN TO SUBMIT A MESSAGE</h3>
+
+  <div class="card p-5 d-inline-block">
+    <div id="qr-container" style="background: white; padding: 20px; display: inline-block;">
+      <!-- QR code rendered by JavaScript -->
+    </div>
+  </div>
+
+  <p class="mt-4 text-muted" id="url-display"></p>
+
+  <div class="mt-3">
+    <small class="text-muted">
+      Point your phone camera at this code to submit a message to the flipdot display.
+    </small>
+  </div>
+</div>
+
+<script>
+// Simple QR code generation using a public API-free approach
+// We use the browser to display the URL and generate a QR via canvas
+// For production, use qrcode.js or server-side generation
+
+const submitUrl = window.location.origin + '/workshop/submit';
+document.getElementById('url-display').textContent = submitUrl;
+
+// Use a lightweight QR code library loaded from CDN
+const script = document.createElement('script');
+script.src = 'https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.min.js';
+script.onload = function() {
+  const qr = qrcode(0, 'M');
+  qr.addData(submitUrl);
+  qr.make();
+  document.getElementById('qr-container').innerHTML = qr.createSvgTag({
+    cellSize: 8,
+    margin: 0,
+  });
+};
+document.head.appendChild(script);
+</script>
+{% endblock %}

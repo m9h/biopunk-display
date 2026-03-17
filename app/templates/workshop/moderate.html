@@ -1,0 +1,95 @@
+{% extends "base.html" %}
+
+{% block title %}Moderate — Biopunk Workshop{% endblock %}
+
+{% block content %}
+<div class="row g-4">
+  <div class="col-lg-6">
+    <div class="card p-4">
+      <h5 class="mb-3">Pending ({{ pending|length }})</h5>
+      {% if pending %}
+        {% for sub in pending %}
+        <div class="d-flex justify-content-between align-items-center py-2 border-bottom border-secondary"
+             id="sub-{{ sub.id }}">
+          <div>
+            <strong>{{ sub.body }}</strong>
+            <br><small class="text-muted">{{ sub.nickname }} &mdash;
+              {{ sub.created_at.strftime('%H:%M') }}</small>
+          </div>
+          <div class="d-flex gap-1">
+            <button class="btn btn-bio btn-sm" onclick="moderate({{ sub.id }}, 'approve')">
+              &#10003;
+            </button>
+            <button class="btn btn-outline-bio btn-sm" onclick="moderate({{ sub.id }}, 'reject')">
+              &#10007;
+            </button>
+          </div>
+        </div>
+        {% endfor %}
+      {% else %}
+        <p class="text-muted">No pending submissions.</p>
+      {% endif %}
+    </div>
+  </div>
+
+  <div class="col-lg-6">
+    <div class="card p-4">
+      <div class="d-flex justify-content-between mb-3">
+        <h5 class="mb-0">Approved</h5>
+        <button class="btn btn-bio btn-sm" onclick="playTop()">
+          &#9654; Play Top Voted
+        </button>
+      </div>
+      {% if approved %}
+        {% for sub in approved %}
+        <div class="d-flex justify-content-between align-items-center py-2 border-bottom border-secondary">
+          <div>
+            <strong>{{ sub.body }}</strong>
+            <br><small class="text-muted">{{ sub.nickname }} &mdash;
+              &#9650; {{ sub.vote_count }}
+              {% if sub.played %}<span class="badge bg-secondary">played</span>{% endif %}
+            </small>
+          </div>
+          <button class="btn btn-outline-bio btn-sm" onclick="sendToDisplay({{ sub.id }})">
+            Send
+          </button>
+        </div>
+        {% endfor %}
+      {% else %}
+        <p class="text-muted">No approved submissions yet.</p>
+      {% endif %}
+    </div>
+  </div>
+</div>
+
+<script>
+function moderate(id, action) {
+  fetch('/workshop/api/' + action + '/' + id, {method: 'POST'})
+    .then(() => {
+      document.getElementById('sub-' + id).remove();
+      // Refresh page after a short delay to update approved list
+      setTimeout(() => location.reload(), 500);
+    });
+}
+
+function sendToDisplay(id) {
+  fetch('/workshop/api/send/' + id, {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({transition: 'pop'})
+  }).then(() => location.reload());
+}
+
+function playTop() {
+  fetch('/workshop/api/play-top', {method: 'POST'})
+    .then(r => r.json())
+    .then(data => {
+      if (data.body) alert('Playing: ' + data.body);
+      else alert(data.error || 'Nothing to play');
+    });
+}
+
+// Auto-refresh every 10 seconds
+setTimeout(() => location.reload(), 10000);
+</script>
+{% endblock %}

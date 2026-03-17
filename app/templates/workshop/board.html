@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+
+{% block title %}Live Board — Biopunk Workshop{% endblock %}
+
+{% block content %}
+<div class="text-center mb-4">
+  <h3>&#9632; LIVE BOARD</h3>
+  <p class="text-muted">Messages ranked by audience votes</p>
+</div>
+
+<div class="row justify-content-center">
+  <div class="col-lg-8">
+    {% if submissions %}
+      {% for sub in submissions %}
+      <div class="card p-3 mb-2 {% if loop.index == 1 %}border-warning{% endif %}">
+        <div class="d-flex justify-content-between align-items-center">
+          <div>
+            <span class="me-2" style="font-size: 1.5rem; color: {% if loop.index <= 3 %}gold{% else %}var(--bio-green){% endif %}">
+              #{{ loop.index }}
+            </span>
+            <strong style="font-size: {% if loop.index == 1 %}1.3rem{% else %}1rem{% endif %}">
+              {{ sub.body }}
+            </strong>
+          </div>
+          <div class="text-end">
+            <div style="font-size: 1.5rem;">&#9650; {{ sub.vote_count }}</div>
+            <small class="text-muted">{{ sub.nickname }}</small>
+          </div>
+        </div>
+      </div>
+      {% endfor %}
+    {% else %}
+      <div class="text-center text-muted mt-5">
+        <h4>No messages yet. Scan the QR code to submit!</h4>
+      </div>
+    {% endif %}
+  </div>
+</div>
+
+<script>
+// Auto-refresh every 5 seconds
+setTimeout(() => location.reload(), 5000);
+</script>
+{% endblock %}

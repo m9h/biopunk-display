@@ -45,6 +45,14 @@ def create_app(config_class=Config):
     app.gesture_input.start()
     app.webcam_input.start()
 
+    # Generative art engine (Chapter 15)
+    from app.generators.engine import GeneratorEngine
+    app.generators = GeneratorEngine(app)
+
+    # Live data streams (Chapter 16)
+    from app.streams.engine import StreamEngine
+    app.streams = StreamEngine(app)
+
     # OpenClaw agent (Chapter 14 — optional)
     if app.config.get('OPENCLAW_ENABLED'):
         try:
@@ -69,6 +77,10 @@ def create_app(config_class=Config):
     from app.api import bp as api_bp
     app.register_blueprint(api_bp)
 
+    from app.workshop import bp as workshop_bp
+    app.register_blueprint(workshop_bp)
+
     return app
 
 from app import models  # noqa: E402, F401
+from app.workshop import models as workshop_models  # noqa: E402, F401

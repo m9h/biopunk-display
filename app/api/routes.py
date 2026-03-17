@@ -172,3 +172,71 @@ def openclaw_auto_status():
         'enabled': current_app.openclaw is not None,
         'autonomous_running': auto.is_running if auto else False,
     })
+
+
+# -- Generator endpoints (Chapter 15) --
+
+@bp.route('/generators', methods=['GET'])
+def list_generators():
+    """List available generative art algorithms."""
+    return jsonify({
+        'generators': current_app.generators.list_generators(),
+        'active': current_app.generators.active,
+    })
+
+
+@bp.route('/generators/start', methods=['POST'])
+def start_generator():
+    """Start a generative art algorithm on the display."""
+    data = request.get_json() or {}
+    name = data.get('name')
+    if not name:
+        return jsonify({'error': 'name is required'}), 400
+
+    seed = data.get('seed')
+    tick_rate = data.get('tick_rate')
+
+    try:
+        current_app.generators.start(name, seed=seed, tick_rate=tick_rate)
+        return jsonify({'status': 'running', 'generator': name})
+    except ValueError as e:
+        return jsonify({'error': str(e)}), 404
+
+
+@bp.route('/generators/stop', methods=['POST'])
+def stop_generator():
+    """Stop the currently running generator."""
+    current_app.generators.stop()
+    return jsonify({'status': 'stopped'})
+
+
+# -- Stream endpoints (Chapter 16) --
+
+@bp.route('/streams', methods=['GET'])
+def list_streams():
+    """List available and active data streams."""
+    return jsonify({'streams': current_app.streams.list_sources()})
+
+
+@bp.route('/streams/<name>/start', methods=['POST'])
+def start_stream(name):
+    """Start a data stream."""
+    try:
+        current_app.streams.start_stream(name)
+        return jsonify({'status': 'started', 'stream': name})
+    except ValueError as e:
+        return jsonify({'error': str(e)}), 404
+
+
+@bp.route('/streams/<name>/stop', methods=['POST'])
+def stop_stream(name):
+    """Stop a data stream."""
+    current_app.streams.stop_stream(name)
+    return jsonify({'status': 'stopped', 'stream': name})
+
+
+@bp.route('/streams/stop-all', methods=['POST'])
+def stop_all_streams():
+    """Stop all active data streams."""
+    current_app.streams.stop_all()
+    return jsonify({'status': 'all stopped'})

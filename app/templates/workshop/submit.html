@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+
+{% block title %}Submit Message — Biopunk Workshop{% endblock %}
+
+{% block content %}
+<div class="row g-4 justify-content-center">
+  <div class="col-md-8 col-lg-6">
+    <div class="card p-4 text-center">
+      <h4 class="mb-3">&#9632; SEND TO THE DISPLAY</h4>
+      <form method="post">
+        <div class="mb-3">
+          <input type="text" name="message" class="form-control form-control-lg text-center"
+                 placeholder="YOUR MESSAGE HERE" maxlength="200" required autofocus
+                 style="font-size: 1.4rem; text-transform: uppercase;">
+        </div>
+        <div class="mb-3">
+          <input type="text" name="nickname" class="form-control text-center"
+                 placeholder="Your name (optional)" maxlength="30">
+        </div>
+        <button type="submit" class="btn btn-bio btn-lg w-100">SUBMIT</button>
+      </form>
+    </div>
+
+    {% if approved %}
+    <div class="card p-4 mt-4">
+      <h5 class="mb-3">Live Messages — Vote for your favorite!</h5>
+      {% for sub in approved %}
+      <div class="d-flex justify-content-between align-items-center py-2 border-bottom border-secondary">
+        <div>
+          <strong>{{ sub.body }}</strong>
+          <br><small class="text-muted">— {{ sub.nickname }}</small>
+        </div>
+        <button class="btn btn-outline-bio btn-sm vote-btn" data-id="{{ sub.id }}"
+                onclick="vote({{ sub.id }}, this)">
+          &#9650; <span class="vote-count">{{ sub.vote_count }}</span>
+        </button>
+      </div>
+      {% endfor %}
+    </div>
+    {% endif %}
+  </div>
+</div>
+
+<script>
+function vote(id, btn) {
+  fetch('/workshop/api/vote/' + id, {method: 'POST'})
+    .then(r => r.json())
+    .then(data => {
+      if (data.votes !== undefined) {
+        btn.querySelector('.vote-count').textContent = data.votes;
+        btn.disabled = true;
+        btn.classList.add('disabled');
+      }
+    });
+}
+</script>
+{% endblock %}

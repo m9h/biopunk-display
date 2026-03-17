@@ -54,7 +54,12 @@
   <nav class="navbar navbar-dark mb-4">
     <div class="container">
       <a class="navbar-brand" href="/">&#9632; BIOPUNK FLIPDOT</a>
-      <span class="navbar-text small" id="queue-badge"></span>
+      <div class="d-flex gap-3 align-items-center">
+        <a href="/workshop/submit" class="navbar-text small text-decoration-none" style="color: var(--bio-dim)">Workshop</a>
+        <a href="/workshop/board" class="navbar-text small text-decoration-none" style="color: var(--bio-dim)">Board</a>
+        <a href="/workshop/moderate" class="navbar-text small text-decoration-none" style="color: var(--bio-dim)">Mod</a>
+        <span class="navbar-text small" id="queue-badge"></span>
+      </div>
     </div>
   </nav>
 
@@ -71,7 +76,7 @@
     {% block content %}{% endblock %}
 
     <footer class="mt-5 mb-3 text-center small">
-      biopunk-display v0.5 &mdash; chapters 1-9, 12, 14
+      biopunk-display v1.0 &mdash; chapters 1-9, 12, 14-17
     </footer>
   </div>
 
