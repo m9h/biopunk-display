@@ -1,3 +1,6 @@
+import os
+import signal
+
 from flask import jsonify, request, current_app
 from app import db
 from app.api import bp
@@ -299,7 +302,7 @@ def automata_start():
         kwargs['threshold'] = int(data['threshold'])
 
     from app.display.automata import AutomataPlayer
-    player = AutomataPlayer(current_app, automaton=automaton, speed=speed, **kwargs)
+    player = AutomataPlayer(current_app._get_current_object(), automaton=automaton, speed=speed, **kwargs)
     player.start()
     current_app._automata_player = player
 
@@ -390,7 +393,7 @@ def automata_play_pattern(name):
         kwargs['threshold'] = int(pattern['threshold'])
 
     from app.display.automata import AutomataPlayer
-    player = AutomataPlayer(current_app, automaton=automaton, speed=speed, **kwargs)
+    player = AutomataPlayer(current_app._get_current_object(), automaton=automaton, speed=speed, **kwargs)
     player.start()
     current_app._automata_player = player
 
@@ -400,3 +403,28 @@ def automata_play_pattern(name):
         'automaton': automaton,
         'speed': speed,
     })
+
+
+@bp.route('/shutdown', methods=['POST'])
+def shutdown():
+    """Gracefully shut down the Flask server."""
+    # Stop automata if running
+    player = getattr(current_app, '_automata_player', None)
+    if player and player.is_running:
+        player.stop()
+
+    # Stop input modules
+    for attr in ('voice_input', 'gesture_input', 'webcam_input'):
+        module = getattr(current_app, attr, None)
+        if module and hasattr(module, 'stop'):
+            module.stop()
+
+    # Stop message queue
+    queue = getattr(current_app, 'message_queue', None)
+    if queue and hasattr(queue, 'stop'):
+        queue.stop()
+
+    # Send SIGTERM to ourselves
+    os.kill(os.getpid(), signal.SIGTERM)
+
+    return jsonify({'status': 'shutting down'})

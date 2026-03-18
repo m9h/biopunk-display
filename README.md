@@ -73,11 +73,14 @@ Each chapter builds on the last, turning a bare Flask app into a full interactiv
 | 🟢 | **7** | Voice Input | Vosk offline speech recognition via Blue Yeti mic | ✅ Done |
 | 🟢 | **8** | Gesture Input | Leap Motion hand tracking → display commands | ✅ Done |
 | 🟢 | **9** | Webcam | OpenCV presence detection via LifeCam HD-3000 | ✅ Done |
-| ⚪ | **10** | User Auth | `Flask-Login` for multi-user access control | ⬚ Planned |
-| ⚪ | **11** | REST API | Full CRUD API blueprint (groundwork already in place) | ⬚ Planned |
+| 🟢 | **10** | User Auth | `Flask-Login` for multi-user access control | ✅ Done |
+| 🟢 | **11** | REST API | Full CRUD API blueprint (groundwork already in place) | ✅ Done |
 | 🟢 | **12** | Playlists | Playlist-as-data: JSON-defined display sequences | ✅ Done |
 | ⚪ | **13** | Deployment | `systemd` service, auto-start on boot | ⬚ Planned |
 | 🟢 | **14** | OpenClaw AI | Claude API tool_use agent + autonomous mode | ✅ Done |
+| 🟢 | **15** | Generative Art | Cellular automata engine: Life, Wolfram rules, reaction-diffusion | ✅ Done |
+| ⚪ | **16** | Data Streams | Live data sources: system stats, weather, ISS tracker, clock | ⬚ Planned |
+| ⚪ | **17** | Workshop Mode | Collaborative display: QR submit, moderation, voting, leaderboard | ⬚ Planned |
 
 ---
 
@@ -100,18 +103,17 @@ Each chapter builds on the last, turning a bare Flask app into a full interactiv
 git clone https://github.com/m9h/biopunk-display.git
 cd biopunk-display
 
-# Install dependencies
-python3 -m venv venv
-source venv/bin/activate
-pip install -r requirements.txt
+# Install dependencies (using uv)
+uv venv
+uv pip install -r requirements.txt
 
 # Initialize the database
-flask db init
-flask db migrate -m "initial"
-flask db upgrade
+uv run flask db init
+uv run flask db migrate -m "initial"
+uv run flask db upgrade
 
 # Run the server
-flask run
+uv run python -c "from app import create_app; app = create_app(); app.run(host='0.0.0.0', port=5000)"
 ```
 
 Then open **http://localhost:5000** — type a message, pick a transition effect, and watch it flip!
@@ -136,6 +138,7 @@ biopunk-display/
 │   │   ├── manager.py       # Thread-safe DisplayManager
 │   │   ├── queue.py         # Priority message queue + worker
 │   │   ├── playlist.py      # JSON playlist loader/player (Ch.12)
+│   │   ├── automata.py      # Cellular automata engine (Ch.15)
 │   │   └── fonts.py         # Double-height 14px font rendering
 │   ├── inputs/              # Sensor input modules
 │   │   ├── voice.py         # Vosk speech-to-text (Ch.7)
@@ -155,6 +158,7 @@ biopunk-display/
 ├── docs/                    # Educational chapter write-ups
 ├── playlists/               # JSON playlist files
 ├── migrations/              # Flask-Migrate (Alembic) DB migrations
+├── dashboard.py             # Curses-based monitoring console
 ├── config.py                # Flask configuration (env var overrides)
 ├── biopunk.py               # Entry point (flask run)
 ├── requirements.txt         # Python dependencies

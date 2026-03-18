@@ -348,5 +348,6 @@ class AutomataPlayer:
         try:
             self._app.display.set_frame(display_bytes)
             self._app.display.core.fill(display_bytes)
-        except Exception:
-            pass  # no hardware — silently skip
+        except Exception as e:
+            import logging
+            logging.getLogger(__name__).warning('AutomataPlayer display error: %s', e)
