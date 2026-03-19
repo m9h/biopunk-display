@@ -14,6 +14,7 @@ from flask import (
     render_template, request, jsonify, flash, redirect,
     url_for, current_app
 )
+from flask_login import login_required
 from app import db
 from app.workshop import bp
 from app.workshop.models import Submission, Vote
@@ -66,6 +67,7 @@ def qr_code():
 # -- Facilitator views --
 
 @bp.route('/moderate')
+@login_required
 def moderate():
     """Facilitator moderation dashboard."""
     pending = Submission.query.filter_by(status='pending').order_by(
@@ -81,6 +83,7 @@ def moderate():
 # -- API endpoints --
 
 @bp.route('/api/approve/<int:sub_id>', methods=['POST'])
+@login_required
 def approve(sub_id):
     """Approve a pending submission."""
     sub = db.get_or_404(Submission, sub_id)
@@ -90,6 +93,7 @@ def approve(sub_id):
 
 
 @bp.route('/api/reject/<int:sub_id>', methods=['POST'])
+@login_required
 def reject(sub_id):
     """Reject a pending submission."""
     sub = db.get_or_404(Submission, sub_id)
@@ -99,6 +103,7 @@ def reject(sub_id):
 
 
 @bp.route('/api/send/<int:sub_id>', methods=['POST'])
+@login_required
 def send_to_display(sub_id):
     """Send an approved submission to the display immediately."""
     sub = db.get_or_404(Submission, sub_id)
@@ -149,6 +154,7 @@ def vote(sub_id):
 
 
 @bp.route('/api/play-top', methods=['POST'])
+@login_required
 def play_top_voted():
     """Send the top-voted unplayed submission to the display."""
     sub = Submission.query.filter_by(
