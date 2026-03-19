@@ -28,14 +28,22 @@ fi
 
 echo "Installing dependencies..."
 if command -v uv &>/dev/null; then
-    uv pip install -r requirements.txt gunicorn
+    uv pip install -r requirements.txt
 else
-    .venv/bin/pip install -r requirements.txt gunicorn
+    .venv/bin/pip install -r requirements.txt
 fi
 
 # Run database migrations
 echo "Running database migrations..."
 FLASK_APP=biopunk.py .venv/bin/flask db upgrade
+
+# Install udev rules for stable /dev/flipdot symlink
+if [ -f deploy/99-flipdot.rules ]; then
+    echo "Installing udev rules for FTDI adapter..."
+    sudo cp deploy/99-flipdot.rules /etc/udev/rules.d/
+    sudo udevadm control --reload-rules
+    sudo udevadm trigger
+fi
 
 # Install systemd service (user-level, no sudo)
 SERVICE_DIR="$HOME/.config/systemd/user"

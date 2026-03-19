@@ -11,7 +11,7 @@ Restart=always
 RestartSec=5
 Environment=FLASK_APP=biopunk.py
 Environment=SECRET_KEY=change-this-in-production
-Environment=FLIPDOT_PORT=/dev/ttyUSB0
+Environment=FLIPDOT_PORT=/dev/flipdot
 
 [Install]
 WantedBy=multi-user.target

@@ -1,0 +1,13 @@
+# Biopunk Flipdot Display — udev rules for FTDI USB-serial adapter
+#
+# Creates a stable /dev/flipdot symlink so the app doesn't depend on
+# the kernel-assigned /dev/ttyUSBx number.
+#
+# Install:
+#   sudo cp deploy/99-flipdot.rules /etc/udev/rules.d/
+#   sudo udevadm control --reload-rules
+#   sudo udevadm trigger
+#
+# After reconnecting the FTDI adapter, /dev/flipdot should appear.
+
+SUBSYSTEM=="tty", ATTRS{idVendor}=="0403", SYMLINK+="flipdot", MODE="0666"
