@@ -76,11 +76,11 @@ Each chapter builds on the last, turning a bare Flask app into a full interactiv
 | 🟢 | **10** | User Auth | `Flask-Login` for multi-user access control | ✅ Done |
 | 🟢 | **11** | REST API | Full CRUD API blueprint (groundwork already in place) | ✅ Done |
 | 🟢 | **12** | Playlists | Playlist-as-data: JSON-defined display sequences | ✅ Done |
-| ⚪ | **13** | Deployment | `systemd` service, auto-start on boot | ⬚ Planned |
+| 🟢 | **13** | Deployment | `systemd` service, Gunicorn, udev rules, auto-start on boot | ✅ Done |
 | 🟢 | **14** | OpenClaw AI | Claude API tool_use agent + autonomous mode | ✅ Done |
 | 🟢 | **15** | Generative Art | Cellular automata engine: Life, Wolfram rules, reaction-diffusion | ✅ Done |
-| ⚪ | **16** | Data Streams | Live data sources: system stats, weather, ISS tracker, clock | ⬚ Planned |
-| ⚪ | **17** | Workshop Mode | Collaborative display: QR submit, moderation, voting, leaderboard | ⬚ Planned |
+| 🟢 | **16** | Data Streams | Live data sources: system stats, weather, ISS tracker, clock | ✅ Done |
+| 🟢 | **17** | Workshop Mode | Collaborative display: QR submit, moderation, voting, leaderboard | ✅ Done |
 
 ---
 
@@ -145,22 +145,39 @@ biopunk-display/
 │   │   ├── gesture.py       # Leap Motion gestures (Ch.8)
 │   │   ├── webcam.py        # Presence detection (Ch.9)
 │   │   └── webhook.py       # External webhook processor
+│   ├── generators/          # Generative art engine (Ch.15)
+│   │   ├── engine.py        # Plugin-based generator runner
+│   │   └── automata.py      # Life, Wolfram, reaction-diffusion, sparks
+│   ├── streams/             # Live data streams (Ch.16)
+│   │   ├── engine.py        # Stream scheduler + queue integration
+│   │   └── sources.py       # System stats, weather, ISS, clock, sensors
+│   ├── workshop/            # Collaborative workshop mode (Ch.17)
+│   │   ├── routes.py        # QR submit, moderate, vote, leaderboard
+│   │   └── models.py        # Submission + Vote models
 │   ├── openclaw/            # AI agent layer (Ch.14)
 │   │   ├── agent.py         # Claude API tool_use agent
 │   │   └── autonomous.py    # Periodic autonomous mode loop
 │   └── templates/
 │       ├── base.html        # Bootstrap 5 dark biopunk theme
-│       └── index.html       # Dashboard: send messages + history
+│       ├── index.html       # Dashboard: send messages + history
+│       └── workshop/        # Workshop submit, board, moderate, QR views
 ├── core/
 │   └── core.py              # WorkingFlipdotCore — serial comms, char dict
 ├── transition/
 │   └── transition.py        # Transition effects (scroll, dissolve, matrix, etc.)
-├── docs/                    # Educational chapter write-ups
-├── playlists/               # JSON playlist files
+├── deploy/                  # Deployment files (Ch.13)
+│   └── 99-flipdot.rules     # udev rules for stable /dev/flipdot symlink
+├── docs/                    # Educational chapter write-ups (Ch.1–17)
+├── playlists/               # JSON playlist + CA pattern files
+├── tests/                   # pytest suite (285 tests)
 ├── migrations/              # Flask-Migrate (Alembic) DB migrations
 ├── dashboard.py             # Curses-based monitoring console
 ├── config.py                # Flask configuration (env var overrides)
 ├── biopunk.py               # Entry point (flask run)
+├── wsgi.py                  # WSGI entry point (gunicorn)
+├── deploy.sh                # Automated deployment script
+├── biopunk-display.service  # systemd unit file
+├── .env.example             # Environment variable reference
 ├── requirements.txt         # Python dependencies
 └── .flaskenv                # Flask environment vars
 ```
