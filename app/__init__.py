@@ -51,10 +51,14 @@ def create_app(config_class=Config):
     from app.inputs.webhook import WebhookInput
     app.webhook_input = WebhookInput(app)
 
+    from app.inputs.pose import PoseInput
+    app.pose_input = PoseInput(app)
+
     # Start optional inputs (won't start if deps missing)
     app.voice_input.start()
     app.gesture_input.start()
     app.webcam_input.start()
+    # Pose tracking starts on demand via API (shares webcam with presence detection)
 
     # Generative art engine (Chapter 15)
     from app.generators.engine import GeneratorEngine

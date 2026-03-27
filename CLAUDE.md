@@ -48,15 +48,22 @@ biopunk-display/
 12. Playlist-as-data (JSON files) (Chapter 12)
 13. Deployment: systemd service, auto-start (Chapter 13)
 14. OpenClaw integration (Chapter 14, capstone)
+15. Generative art: cellular automata (Chapter 15)
+16. Live data streams (Chapter 16)
+17. Workshop mode (Chapter 17)
+18. Pose tracking stick figure (Chapter 18)
 
 ### Key Dependencies
 flask, flask-sqlalchemy, flask-migrate, flask-login, flask-wtf, bootstrap-flask,
-flask-moment, python-dotenv, vosk, sounddevice, opencv-python-headless, pyserial, Pillow
+flask-moment, python-dotenv, vosk, sounddevice, opencv-python-headless, pyserial, Pillow,
+mediapipe
 
 ### Existing Working Code (in this repo)
 - `core/core.py` — WorkingFlipdotCore class, character dict, serial comms, fill/scroll/transition primitives
 - `transition/transition.py` — transition effects (righttoleft, magichat, pop, dissolve, matrix, typewriter, etc.)
 - `video/video.py` — video frame playback from PNG sequences
+- `app/inputs/pose.py` — MediaPipe PoseLandmarker → stick figure on 7×30 grid (Chapter 18)
+- `pose_demo.py` — standalone pose tracker demo (ASCII terminal or `--serial` for hardware)
 - Display constants: TROW=7, TCOLUMN=105, ROW_BREAK=75, BITMASK=[1,2,4,8,0x10,0x20,0x40]
 
 ### GitHub

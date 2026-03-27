@@ -405,6 +405,53 @@ def automata_play_pattern(name):
     })
 
 
+# -- Pose tracking endpoints (Chapter 18) --
+
+@bp.route('/pose/start', methods=['POST'])
+def pose_start():
+    """Start pose tracking — stick figure mirrors your body on the flipdot."""
+    pose = getattr(current_app, 'pose_input', None)
+    if not pose:
+        return jsonify({'error': 'pose input not initialized'}), 503
+
+    # Stop webcam presence detection (shares the camera)
+    webcam = getattr(current_app, 'webcam_input', None)
+    if webcam:
+        webcam.stop()
+
+    pose.start()
+    return jsonify({'status': 'tracking', 'device': pose._device})
+
+
+@bp.route('/pose/stop', methods=['POST'])
+def pose_stop():
+    """Stop pose tracking and optionally restart webcam presence."""
+    pose = getattr(current_app, 'pose_input', None)
+    if pose:
+        pose.stop()
+
+    # Restart webcam presence detection
+    data = request.get_json() or {}
+    if data.get('restart_webcam', True):
+        webcam = getattr(current_app, 'webcam_input', None)
+        if webcam:
+            webcam.start()
+
+    current_app.display.clear()
+    return jsonify({'status': 'stopped'})
+
+
+@bp.route('/pose/status', methods=['GET'])
+def pose_status():
+    """Check pose tracking status."""
+    pose = getattr(current_app, 'pose_input', None)
+    return jsonify({
+        'running': pose._running if pose else False,
+        'tracking': pose.is_tracking if pose else False,
+        'fps': pose.fps if pose else 0,
+    })
+
+
 @bp.route('/shutdown', methods=['POST'])
 def shutdown():
     """Gracefully shut down the Flask server."""
@@ -414,7 +461,7 @@ def shutdown():
         player.stop()
 
     # Stop input modules
-    for attr in ('voice_input', 'gesture_input', 'webcam_input'):
+    for attr in ('voice_input', 'gesture_input', 'webcam_input', 'pose_input'):
         module = getattr(current_app, attr, None)
         if module and hasattr(module, 'stop'):
             module.stop()

@@ -16,3 +16,5 @@ websocket-client
 opencv-python-headless
 # Chapter 14: OpenClaw
 anthropic
+# Chapter 18: Pose tracking
+mediapipe
