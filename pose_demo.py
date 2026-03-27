@@ -23,9 +23,12 @@ import mediapipe as mp
 # Add project root to path
 sys.path.insert(0, os.path.dirname(__file__))
 
-from core.core import WorkingFlipdotCore, TCOLUMN, TROW, BITMASK
+from core.core import WorkingFlipdotCore, TCOLUMN, BITMASK
 
-VISIBLE_COLS = 30
+COLS = 30
+ROWS = 14
+PANEL_ROWS = 7
+BOTTOM_PANEL_OFFSET = 75
 MIN_VIS = 0.45
 
 SKELETON = [
@@ -38,8 +41,12 @@ SKELETON = [
 
 
 def set_pixel(frame, col, row):
-    if 0 <= col < VISIBLE_COLS and 0 <= row < TROW:
-        frame[col] |= BITMASK[row]
+    """Set pixel at (col, row) where row 0=bottom, row 13=top."""
+    if 0 <= col < COLS and 0 <= row < ROWS:
+        if row >= PANEL_ROWS:
+            frame[col] |= BITMASK[row - PANEL_ROWS]
+        else:
+            frame[BOTTOM_PANEL_OFFSET + col] |= BITMASK[row]
 
 
 def draw_line(frame, c0, r0, c1, r1):
@@ -65,10 +72,9 @@ KEY_INDICES = [0, 11, 12, 13, 14, 15, 16, 23, 24, 25, 26, 27, 28]
 
 
 def render_stick_figure(landmarks):
-    """Adaptive bounding box: stretches visible landmarks to fill the grid."""
+    """Adaptive bounding box: stretches visible landmarks to fill the 14x30 grid."""
     frame = bytearray(TCOLUMN)
 
-    # Compute bounding box from visible landmarks
     vis_x = [landmarks[i].x for i in KEY_INDICES if landmarks[i].visibility > MIN_VIS]
     vis_y = [landmarks[i].y for i in KEY_INDICES if landmarks[i].visibility > MIN_VIS]
     if not vis_x:
@@ -79,7 +85,7 @@ def render_stick_figure(landmarks):
     x_span = max(x_max - x_min, 0.05)
     y_span = max(y_max - y_min, 0.05)
     pad_x = max(x_span * 0.15, 0.03)
-    pad_y = max(y_span * 0.15, 0.03)
+    pad_y = max(y_span * 0.10, 0.02)
     x_min = max(0.0, x_min - pad_x)
     x_max = min(1.0, x_max + pad_x)
     y_min = max(0.0, y_min - pad_y)
@@ -90,15 +96,16 @@ def render_stick_figure(landmarks):
     def lm_to_grid(lm):
         x = max(0.0, min(1.0, (lm.x - x_min) / x_range))
         y = max(0.0, min(1.0, (lm.y - y_min) / y_range))
-        return int(x * (VISIBLE_COLS - 1)), int((1.0 - y) * (TROW - 1))
+        return int(x * (COLS - 1)), int((1.0 - y) * (ROWS - 1))
 
-    # Head: 3 wide, 1 row
+    # Head: 3 wide + top pixel
     nose = landmarks[0]
     if nose.visibility > MIN_VIS:
         nc, nr = lm_to_grid(nose)
         set_pixel(frame, nc, nr)
         set_pixel(frame, nc - 1, nr)
         set_pixel(frame, nc + 1, nr)
+        set_pixel(frame, nc, min(nr + 1, ROWS - 1))
 
     # Neck
     ls, rs = landmarks[11], landmarks[12]
@@ -119,19 +126,24 @@ def render_stick_figure(landmarks):
     return bytes(frame)
 
 
+def read_pixel(frame, col, row):
+    """Read pixel at (col, row) where row 0=bottom, row 13=top."""
+    if row >= PANEL_ROWS:
+        return bool(frame[col] & BITMASK[row - PANEL_ROWS])
+    else:
+        return bool(frame[BOTTOM_PANEL_OFFSET + col] & BITMASK[row])
+
+
 def print_frame_ascii(frame):
-    """Print frame as ASCII art (for terminals without FallbackSerial)."""
+    """Print the 14x30 display as ASCII art."""
     os.system('cls' if os.name == 'nt' else 'clear')
-    print('+' + '-' * VISIBLE_COLS + '+')
-    for row in range(TROW - 1, -1, -1):  # top to bottom
+    print('+' + '-' * COLS + '+')
+    for row in range(ROWS - 1, -1, -1):  # top to bottom
         line = ''
-        for col in range(VISIBLE_COLS):
-            if frame[col] & BITMASK[row]:
-                line += 'O'
-            else:
-                line += '.'
+        for col in range(COLS):
+            line += 'O' if read_pixel(frame, col, row) else '.'
         print('|' + line + '|')
-    print('+' + '-' * VISIBLE_COLS + '+')
+    print('+' + '-' * COLS + '+')
     print('  Pose Tracker Demo -- press Q in camera window / Ctrl-C to quit')
 
 

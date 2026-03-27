@@ -20,8 +20,10 @@ _pose_mod = importlib.util.module_from_spec(_pose_spec)
 _pose_spec.loader.exec_module(_pose_mod)
 
 PoseInput = _pose_mod.PoseInput
-TROW = _pose_mod.TROW
-VISIBLE_COLS = _pose_mod.VISIBLE_COLS
+ROWS = _pose_mod.ROWS
+COLS = _pose_mod.COLS
+PANEL_ROWS = _pose_mod.PANEL_ROWS
+BOTTOM_PANEL_OFFSET = _pose_mod.BOTTOM_PANEL_OFFSET
 BITMASK = _pose_mod.BITMASK
 MIN_VIS = _pose_mod.MIN_VIS
 
@@ -68,46 +70,47 @@ class TestPoseInput:
         """If all landmarks have low visibility, frame should be blank."""
         lms = [FakeLandmark(0.5, 0.5, visibility=0.1)] * 33
         frame = self.pose._render_stick_figure(lms)
-        # All bytes in visible region should be 0
-        assert all(b == 0 for b in frame[:VISIBLE_COLS])
+        assert all(b == 0 for b in frame)
 
     def test_render_has_pixels_when_visible(self):
-        """Visible landmarks should produce non-zero pixels."""
-        # Person standing in center of frame
+        """Visible landmarks should produce non-zero pixels on both panels."""
         lms = make_landmarks({
-            0: FakeLandmark(0.5, 0.15),   # nose (top)
-            11: FakeLandmark(0.4, 0.3),    # left shoulder
-            12: FakeLandmark(0.6, 0.3),    # right shoulder
-            13: FakeLandmark(0.3, 0.45),   # left elbow
-            14: FakeLandmark(0.7, 0.45),   # right elbow
-            15: FakeLandmark(0.25, 0.55),  # left wrist
-            16: FakeLandmark(0.75, 0.55),  # right wrist
-            23: FakeLandmark(0.45, 0.55),  # left hip
-            24: FakeLandmark(0.55, 0.55),  # right hip
-            25: FakeLandmark(0.42, 0.72),  # left knee
-            26: FakeLandmark(0.58, 0.72),  # right knee
-            27: FakeLandmark(0.40, 0.9),   # left ankle
-            28: FakeLandmark(0.60, 0.9),   # right ankle
+            0: FakeLandmark(0.5, 0.15),
+            11: FakeLandmark(0.4, 0.3),
+            12: FakeLandmark(0.6, 0.3),
+            13: FakeLandmark(0.3, 0.45),
+            14: FakeLandmark(0.7, 0.45),
+            15: FakeLandmark(0.25, 0.55),
+            16: FakeLandmark(0.75, 0.55),
+            23: FakeLandmark(0.45, 0.55),
+            24: FakeLandmark(0.55, 0.55),
+            25: FakeLandmark(0.42, 0.72),
+            26: FakeLandmark(0.58, 0.72),
+            27: FakeLandmark(0.40, 0.9),
+            28: FakeLandmark(0.60, 0.9),
         })
         frame = self.pose._render_stick_figure(lms)
-        # Should have some lit pixels in the visible range
-        lit = sum(1 for b in frame[:VISIBLE_COLS] if b != 0)
-        assert lit >= 5, f"Expected at least 5 lit columns, got {lit}"
+        # Top panel (bytes 0-29) should have pixels (head/shoulders)
+        top_lit = sum(1 for b in frame[:COLS] if b != 0)
+        assert top_lit >= 3, f"Top panel: expected >= 3 lit cols, got {top_lit}"
+        # Bottom panel (bytes 75-104) should have pixels (legs/feet)
+        bot_lit = sum(1 for b in frame[BOTTOM_PANEL_OFFSET:BOTTOM_PANEL_OFFSET + COLS] if b != 0)
+        assert bot_lit >= 3, f"Bottom panel: expected >= 3 lit cols, got {bot_lit}"
 
     def test_head_renders_near_top(self):
-        """Nose at top of frame should light pixels in upper rows."""
+        """Nose at top of frame should light pixels in top panel upper rows."""
         lms = make_landmarks({
-            0: FakeLandmark(0.5, 0.12),   # nose near top
-            7: FakeLandmark(0.45, 0.1),    # left ear
-            8: FakeLandmark(0.55, 0.1),    # right ear
+            0: FakeLandmark(0.5, 0.12),
+            7: FakeLandmark(0.45, 0.1),
+            8: FakeLandmark(0.55, 0.1),
             11: FakeLandmark(0.4, 0.3),
             12: FakeLandmark(0.6, 0.3),
         })
         frame = self.pose._render_stick_figure(lms)
-        # Check that upper rows (bits 5-6) are lit somewhere
+        # Top panel upper rows (bits 5-6) should be lit
         upper_bits = BITMASK[5] | BITMASK[6]
-        has_upper = any(frame[c] & upper_bits for c in range(VISIBLE_COLS))
-        assert has_upper, "Head should light upper rows"
+        has_upper = any(frame[c] & upper_bits for c in range(COLS))
+        assert has_upper, "Head should light upper rows of top panel"
 
     def test_arms_spread_wide(self):
         """Arms spread wide should use more columns than arms at sides."""
@@ -146,32 +149,38 @@ class TestPoseInput:
         narrow_frame = self.pose._render_stick_figure(narrow)
         wide_frame = self.pose._render_stick_figure(wide)
 
-        narrow_lit = sum(1 for b in narrow_frame[:VISIBLE_COLS] if b != 0)
-        wide_lit = sum(1 for b in wide_frame[:VISIBLE_COLS] if b != 0)
-        assert wide_lit > narrow_lit, \
-            f"Wide arms ({wide_lit} cols) should use more columns than narrow ({narrow_lit})"
+        def count_pixels(frame):
+            total = 0
+            for c in range(COLS):
+                total += bin(frame[c]).count('1')
+                total += bin(frame[BOTTOM_PANEL_OFFSET + c]).count('1')
+            return total
+        narrow_px = count_pixels(narrow_frame)
+        wide_px = count_pixels(wide_frame)
+        assert wide_px > narrow_px, \
+            f"Wide arms ({wide_px} px) should light more pixels than narrow ({narrow_px})"
 
     def test_pixel_within_bounds(self):
-        """No pixels should be set outside the 7×30 visible area."""
-        # Extreme landmarks near edges
+        """No byte in either panel should exceed 0x7F (7 bits)."""
         lms = make_landmarks({
-            0: FakeLandmark(0.0, 0.0),     # top-left extreme
+            0: FakeLandmark(0.0, 0.0),
             11: FakeLandmark(0.0, 0.2),
-            12: FakeLandmark(1.0, 0.2),    # far right
+            12: FakeLandmark(1.0, 0.2),
             15: FakeLandmark(0.0, 0.5),
             16: FakeLandmark(1.0, 0.5),
             23: FakeLandmark(0.0, 0.8),
             24: FakeLandmark(1.0, 0.8),
-            27: FakeLandmark(0.0, 1.0),    # bottom-left extreme
-            28: FakeLandmark(1.0, 1.0),    # bottom-right extreme
+            27: FakeLandmark(0.0, 1.0),
+            28: FakeLandmark(1.0, 1.0),
         })
         frame = self.pose._render_stick_figure(lms)
-        # No byte should exceed 0x7F (7 bits)
-        for i, b in enumerate(frame[:VISIBLE_COLS]):
-            assert b <= 0x7F, f"Column {i} has value {b:#x} > 0x7F"
+        for i, b in enumerate(frame[:COLS]):
+            assert b <= 0x7F, f"Top panel col {i}: {b:#x} > 0x7F"
+        for i, b in enumerate(frame[BOTTOM_PANEL_OFFSET:BOTTOM_PANEL_OFFSET + COLS]):
+            assert b <= 0x7F, f"Bottom panel col {i}: {b:#x} > 0x7F"
 
-    def test_frame_only_uses_visible_cols(self):
-        """Only the first 30 bytes (visible columns) should have data."""
+    def test_non_visible_cols_blank(self):
+        """Bytes 30-74 (non-visible middle) should always be blank."""
         lms = make_landmarks({
             0: FakeLandmark(0.5, 0.15),
             11: FakeLandmark(0.4, 0.3),
@@ -182,8 +191,7 @@ class TestPoseInput:
             28: FakeLandmark(0.58, 0.9),
         })
         frame = self.pose._render_stick_figure(lms)
-        # Columns 30-74 and 75-104 should be blank
-        assert all(b == 0 for b in frame[VISIBLE_COLS:])
+        assert all(b == 0 for b in frame[COLS:BOTTOM_PANEL_OFFSET])
 
     def test_mirror_config_default(self):
         """Mirror should be True by default."""

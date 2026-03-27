@@ -16,9 +16,13 @@ import threading
 import time
 
 # Display constants (from core.core)
-TROW = 7
+# The flipdot is two stacked 7-row panels: 14 rows × 30 columns total.
+# Frame buffer: bytes 0-29 = top panel, bytes 75-104 = bottom panel.
 TCOLUMN = 105
-VISIBLE_COLS = 30
+COLS = 30
+ROWS = 14           # 2 panels × 7 rows each
+PANEL_ROWS = 7
+BOTTOM_PANEL_OFFSET = 75  # byte offset for bottom panel in frame buffer
 BITMASK = [1, 2, 4, 8, 0x10, 0x20, 0x40]
 
 # Stick figure connections: (landmark_a, landmark_b)
@@ -212,22 +216,19 @@ class PoseInput:
             self._tracking = False
 
     def _render_stick_figure(self, landmarks):
-        """Map MediaPipe landmarks to a 7x30 flipdot frame.
+        """Map MediaPipe landmarks to the 14x30 flipdot frame.
+
+        The display is two stacked 7-row panels = 14 rows x 30 columns.
+        Frame buffer: bytes 0-29 = top panel, bytes 75-104 = bottom panel.
 
         Uses adaptive bounding box: measures the actual extent of visible
-        landmarks and stretches the figure to fill the full 7x30 grid.
-        This way, upper-body-only (sitting at desk) still fills the display
-        instead of clustering in the middle rows.
-
-        Returns a 105-byte buffer where bytes 0-29 are the visible columns.
-        Each byte has 7 bits: bit 0 = row 0 (bottom), bit 6 = row 6 (top).
+        landmarks and stretches the figure to fill the full 14x30 grid.
         """
         frame = bytearray(TCOLUMN)
 
-        # Key landmark indices used for the stick figure
         key_indices = [0, 11, 12, 13, 14, 15, 16, 23, 24, 25, 26, 27, 28]
 
-        # Compute adaptive bounding box from visible landmarks
+        # Adaptive bounding box from visible landmarks
         vis_x = []
         vis_y = []
         for idx in key_indices:
@@ -237,15 +238,14 @@ class PoseInput:
                 vis_y.append(lm.y)
 
         if not vis_x:
-            return bytes(frame)  # nothing visible
+            return bytes(frame)
 
-        # Add padding (10% of span on each side, min 0.05)
         x_min, x_max = min(vis_x), max(vis_x)
         y_min, y_max = min(vis_y), max(vis_y)
         x_span = max(x_max - x_min, 0.05)
         y_span = max(y_max - y_min, 0.05)
         pad_x = max(x_span * 0.15, 0.03)
-        pad_y = max(y_span * 0.15, 0.03)
+        pad_y = max(y_span * 0.10, 0.02)
         x_min = max(0.0, x_min - pad_x)
         x_max = min(1.0, x_max + pad_x)
         y_min = max(0.0, y_min - pad_y)
@@ -254,14 +254,20 @@ class PoseInput:
         y_range = max(y_max - y_min, 0.01)
 
         def set_pixel(col, row):
-            if 0 <= col < VISIBLE_COLS and 0 <= row < TROW:
-                frame[col] |= BITMASK[row]
+            """Set pixel at (col, row) where row 0=bottom, row 13=top."""
+            if 0 <= col < COLS and 0 <= row < ROWS:
+                if row >= PANEL_ROWS:
+                    # Top panel: rows 7-13 → frame bytes 0-29
+                    frame[col] |= BITMASK[row - PANEL_ROWS]
+                else:
+                    # Bottom panel: rows 0-6 → frame bytes 75-104
+                    frame[BOTTOM_PANEL_OFFSET + col] |= BITMASK[row]
 
         def lm_to_grid(lm):
             x = max(0.0, min(1.0, (lm.x - x_min) / x_range))
-            col = int(x * (VISIBLE_COLS - 1))
+            col = int(x * (COLS - 1))
             y = max(0.0, min(1.0, (lm.y - y_min) / y_range))
-            row = int((1.0 - y) * (TROW - 1))
+            row = int((1.0 - y) * (ROWS - 1))
             return col, row
 
         def draw_line(c0, r0, c1, r1):
@@ -282,15 +288,16 @@ class PoseInput:
                     err += dc
                     r0 += sr
 
-        # Head: 3 pixels wide, 1 row (no top-of-head pixel — saves a row)
+        # Head: 3 wide + top pixel (we have room now with 14 rows)
         nose = landmarks[0]
         if nose.visibility > MIN_VIS:
             nc, nr = lm_to_grid(nose)
             set_pixel(nc, nr)
             set_pixel(nc - 1, nr)
             set_pixel(nc + 1, nr)
+            set_pixel(nc, min(nr + 1, ROWS - 1))
 
-        # Neck: nose to midpoint of shoulders
+        # Neck: nose → midpoint of shoulders
         ls = landmarks[11]
         rs = landmarks[12]
         if nose.visibility > MIN_VIS and ls.visibility > MIN_VIS and rs.visibility > MIN_VIS:
