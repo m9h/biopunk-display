@@ -81,6 +81,7 @@ Each chapter builds on the last, turning a bare Flask app into a full interactiv
 | 🟢 | **15** | Generative Art | Cellular automata engine: Life, Wolfram rules, reaction-diffusion | ✅ Done |
 | 🟢 | **16** | Data Streams | Live data sources: system stats, weather, ISS tracker, clock | ✅ Done |
 | 🟢 | **17** | Workshop Mode | Collaborative display: QR submit, moderation, voting, leaderboard | ✅ Done |
+| 🟢 | **18** | Pose Tracker | MediaPipe body tracking → stick figure on flipdot | ✅ Done |
 
 ---
 
@@ -144,6 +145,7 @@ biopunk-display/
 │   │   ├── voice.py         # Vosk speech-to-text (Ch.7)
 │   │   ├── gesture.py       # Leap Motion gestures (Ch.8)
 │   │   ├── webcam.py        # Presence detection (Ch.9)
+│   │   ├── pose.py          # Body tracking stick figure (Ch.18)
 │   │   └── webhook.py       # External webhook processor
 │   ├── generators/          # Generative art engine (Ch.15)
 │   │   ├── engine.py        # Plugin-based generator runner
@@ -171,6 +173,7 @@ biopunk-display/
 ├── playlists/               # JSON playlist + CA pattern files
 ├── tests/                   # pytest suite (285 tests)
 ├── migrations/              # Flask-Migrate (Alembic) DB migrations
+├── pose_demo.py             # Standalone pose tracker demo (terminal or serial)
 ├── dashboard.py             # Curses-based monitoring console
 ├── config.py                # Flask configuration (env var overrides)
 ├── biopunk.py               # Entry point (flask run)
@@ -218,7 +221,57 @@ curl http://localhost:5000/api/display/status
 
 # Clear display
 curl -X POST http://localhost:5000/api/display/clear
+
+# Start pose tracking (stick figure mirrors your body on the flipdot)
+curl -X POST http://localhost:5000/api/pose/start
+
+# Check pose tracking status
+curl http://localhost:5000/api/pose/status
+
+# Stop pose tracking
+curl -X POST http://localhost:5000/api/pose/stop
 ```
+
+---
+
+## 🕺 Pose Tracker (Chapter 18)
+
+Stand in front of the webcam and a stick figure mirrors your movements on the flipdot display.
+
+Uses [MediaPipe PoseLandmarker](https://ai.google.dev/edge/mediapipe/solutions/vision/pose_landmarker) to detect 33 body landmarks, then maps the skeleton onto the 7x30 flipdot grid using Bresenham line drawing. Runs at ~5 fps to respect the mechanical pixel speed limit.
+
+```
++------------------------------+
+|..............OOO.............|
+|...............O..............|
+|..........O..O..O..O.........|
+|...........OO....OO..........|
+|............O....O............|
+|...........O......O...........|
+|..........O........O..........|
++------------------------------+
+```
+
+**Standalone demo** (no Flask server needed):
+```bash
+# ASCII terminal output (works anywhere with a webcam)
+python pose_demo.py
+
+# Send to real flipdot hardware via serial
+python pose_demo.py --serial
+
+# Options
+python pose_demo.py --device 1 --fps 3 --no-preview
+```
+
+**Via Flask API** (when the server is running):
+```bash
+curl -X POST http://localhost:5000/api/pose/start
+```
+
+The pose tracker auto-downloads the model on first run (~5MB to `~/.mediapipe/`).
+It stops webcam presence detection while tracking (they share `/dev/video0`) and
+restarts it when you stop.
 
 ---
 
