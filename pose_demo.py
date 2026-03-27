@@ -32,7 +32,6 @@ BOTTOM_PANEL_OFFSET = 75
 MIN_VIS = 0.45
 
 SKELETON = [
-    (11, 12), (11, 23), (12, 24), (23, 24),  # torso
     (11, 13), (13, 15),  # left arm
     (12, 14), (14, 16),  # right arm
     (23, 25), (25, 27),  # left leg
@@ -98,7 +97,7 @@ def render_stick_figure(landmarks):
         y = max(0.0, min(1.0, (lm.y - y_min) / y_range))
         return int(x * (COLS - 1)), int((1.0 - y) * (ROWS - 1))
 
-    # Head: 3 wide + top pixel
+    # Head
     nose = landmarks[0]
     if nose.visibility > MIN_VIS:
         nc, nr = lm_to_grid(nose)
@@ -107,15 +106,37 @@ def render_stick_figure(landmarks):
         set_pixel(frame, nc + 1, nr)
         set_pixel(frame, nc, min(nr + 1, ROWS - 1))
 
-    # Neck
     ls, rs = landmarks[11], landmarks[12]
-    if nose.visibility > MIN_VIS and ls.visibility > MIN_VIS and rs.visibility > MIN_VIS:
-        nc, nr = lm_to_grid(nose)
+    lh, rh = landmarks[23], landmarks[24]
+    has_s = ls.visibility > MIN_VIS and rs.visibility > MIN_VIS
+    has_h = lh.visibility > MIN_VIS and rh.visibility > MIN_VIS
+
+    if has_s:
         lsc, lsr = lm_to_grid(ls)
         rsc, rsr = lm_to_grid(rs)
-        draw_line(frame, nc, nr, (lsc + rsc) // 2, (lsr + rsr) // 2)
+        msc, msr = (lsc + rsc) // 2, (lsr + rsr) // 2
+    if has_h:
+        lhc, lhr = lm_to_grid(lh)
+        rhc, rhr = lm_to_grid(rh)
+        mhc, mhr = (lhc + rhc) // 2, (lhr + rhr) // 2
 
-    # Skeleton connections
+    # Neck
+    if nose.visibility > MIN_VIS and has_s:
+        nc, nr = lm_to_grid(nose)
+        draw_line(frame, nc, nr, msc, msr)
+    # Spine (single pixel wide)
+    if has_s and has_h:
+        draw_line(frame, msc, msr, mhc, mhr)
+    # Shoulder branches
+    if has_s:
+        draw_line(frame, msc, msr, lsc, lsr)
+        draw_line(frame, msc, msr, rsc, rsr)
+    # Hip branches
+    if has_h:
+        draw_line(frame, mhc, mhr, lhc, lhr)
+        draw_line(frame, mhc, mhr, rhc, rhr)
+
+    # Arm and leg bones
     for a_idx, b_idx in SKELETON:
         a, b = landmarks[a_idx], landmarks[b_idx]
         if a.visibility > MIN_VIS and b.visibility > MIN_VIS:

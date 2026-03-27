@@ -27,12 +27,10 @@ BITMASK = [1, 2, 4, 8, 0x10, 0x20, 0x40]
 
 # Stick figure connections: (landmark_a, landmark_b)
 # Using MediaPipe Pose landmark indices
+# Stick figure skeleton — single-pixel-wide spine, no body outline.
+# Torso is drawn as a single center line (mid-shoulder → mid-hip)
+# in the render function, not as left/right side lines.
 SKELETON = [
-    # Torso
-    (11, 12),  # left shoulder → right shoulder
-    (11, 23),  # left shoulder → left hip
-    (12, 24),  # right shoulder → right hip
-    (23, 24),  # left hip → right hip
     # Left arm
     (11, 13),  # left shoulder → left elbow
     (13, 15),  # left elbow → left wrist
@@ -288,7 +286,7 @@ class PoseInput:
                     err += dc
                     r0 += sr
 
-        # Head: 3 wide + top pixel (we have room now with 14 rows)
+        # Head: 3 wide + top pixel
         nose = landmarks[0]
         if nose.visibility > MIN_VIS:
             nc, nr = lm_to_grid(nose)
@@ -297,16 +295,48 @@ class PoseInput:
             set_pixel(nc + 1, nr)
             set_pixel(nc, min(nr + 1, ROWS - 1))
 
-        # Neck: nose → midpoint of shoulders
         ls = landmarks[11]
         rs = landmarks[12]
-        if nose.visibility > MIN_VIS and ls.visibility > MIN_VIS and rs.visibility > MIN_VIS:
-            nc, nr = lm_to_grid(nose)
+        lh = landmarks[23]
+        rh = landmarks[24]
+
+        # Compute spine midpoints
+        has_shoulders = ls.visibility > MIN_VIS and rs.visibility > MIN_VIS
+        has_hips = lh.visibility > MIN_VIS and rh.visibility > MIN_VIS
+
+        if has_shoulders:
             lsc, lsr = lm_to_grid(ls)
             rsc, rsr = lm_to_grid(rs)
-            draw_line(nc, nr, (lsc + rsc) // 2, (lsr + rsr) // 2)
+            mid_sc = (lsc + rsc) // 2
+            mid_sr = (lsr + rsr) // 2
 
-        # Skeleton connections
+        if has_hips:
+            lhc, lhr = lm_to_grid(lh)
+            rhc, rhr = lm_to_grid(rh)
+            mid_hc = (lhc + rhc) // 2
+            mid_hr = (lhr + rhr) // 2
+
+        # Neck: nose → mid-shoulder
+        if nose.visibility > MIN_VIS and has_shoulders:
+            nc, nr = lm_to_grid(nose)
+            draw_line(nc, nr, mid_sc, mid_sr)
+
+        # Spine: mid-shoulder → mid-hip (single pixel wide)
+        if has_shoulders and has_hips:
+            draw_line(mid_sc, mid_sr, mid_hc, mid_hr)
+
+        # Arms connect from mid-shoulder to shoulder then down
+        if has_shoulders:
+            # Short horizontal to each shoulder, then arm chain continues
+            draw_line(mid_sc, mid_sr, lsc, lsr)
+            draw_line(mid_sc, mid_sr, rsc, rsr)
+
+        # Legs connect from mid-hip to each hip then down
+        if has_hips:
+            draw_line(mid_hc, mid_hr, lhc, lhr)
+            draw_line(mid_hc, mid_hr, rhc, rhr)
+
+        # Arm and leg bones
         for a_idx, b_idx in SKELETON:
             a = landmarks[a_idx]
             b = landmarks[b_idx]
