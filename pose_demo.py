@@ -61,25 +61,44 @@ def draw_line(frame, c0, r0, c1, r1):
             r0 += sr
 
 
-def lm_to_grid(lm):
-    x = max(0.0, min(1.0, (lm.x - 0.2) / 0.6))
-    y = max(0.0, min(1.0, (lm.y - 0.1) / 0.8))
-    col = int(x * (VISIBLE_COLS - 1))
-    row = int((1.0 - y) * (TROW - 1))
-    return col, row
+KEY_INDICES = [0, 11, 12, 13, 14, 15, 16, 23, 24, 25, 26, 27, 28]
 
 
 def render_stick_figure(landmarks):
+    """Adaptive bounding box: stretches visible landmarks to fill the grid."""
     frame = bytearray(TCOLUMN)
 
-    # Head
+    # Compute bounding box from visible landmarks
+    vis_x = [landmarks[i].x for i in KEY_INDICES if landmarks[i].visibility > MIN_VIS]
+    vis_y = [landmarks[i].y for i in KEY_INDICES if landmarks[i].visibility > MIN_VIS]
+    if not vis_x:
+        return bytes(frame)
+
+    x_min, x_max = min(vis_x), max(vis_x)
+    y_min, y_max = min(vis_y), max(vis_y)
+    x_span = max(x_max - x_min, 0.05)
+    y_span = max(y_max - y_min, 0.05)
+    pad_x = max(x_span * 0.15, 0.03)
+    pad_y = max(y_span * 0.15, 0.03)
+    x_min = max(0.0, x_min - pad_x)
+    x_max = min(1.0, x_max + pad_x)
+    y_min = max(0.0, y_min - pad_y)
+    y_max = min(1.0, y_max + pad_y)
+    x_range = max(x_max - x_min, 0.01)
+    y_range = max(y_max - y_min, 0.01)
+
+    def lm_to_grid(lm):
+        x = max(0.0, min(1.0, (lm.x - x_min) / x_range))
+        y = max(0.0, min(1.0, (lm.y - y_min) / y_range))
+        return int(x * (VISIBLE_COLS - 1)), int((1.0 - y) * (TROW - 1))
+
+    # Head: 3 wide, 1 row
     nose = landmarks[0]
     if nose.visibility > MIN_VIS:
         nc, nr = lm_to_grid(nose)
         set_pixel(frame, nc, nr)
         set_pixel(frame, nc - 1, nr)
         set_pixel(frame, nc + 1, nr)
-        set_pixel(frame, nc, min(nr + 1, TROW - 1))
 
     # Neck
     ls, rs = landmarks[11], landmarks[12]

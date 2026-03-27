@@ -212,46 +212,64 @@ class PoseInput:
             self._tracking = False
 
     def _render_stick_figure(self, landmarks):
-        """Map MediaPipe landmarks to a 7×30 flipdot frame.
+        """Map MediaPipe landmarks to a 7x30 flipdot frame.
+
+        Uses adaptive bounding box: measures the actual extent of visible
+        landmarks and stretches the figure to fill the full 7x30 grid.
+        This way, upper-body-only (sitting at desk) still fills the display
+        instead of clustering in the middle rows.
 
         Returns a 105-byte buffer where bytes 0-29 are the visible columns.
         Each byte has 7 bits: bit 0 = row 0 (bottom), bit 6 = row 6 (top).
         """
-        # Start with blank frame
         frame = bytearray(TCOLUMN)
 
+        # Key landmark indices used for the stick figure
+        key_indices = [0, 11, 12, 13, 14, 15, 16, 23, 24, 25, 26, 27, 28]
+
+        # Compute adaptive bounding box from visible landmarks
+        vis_x = []
+        vis_y = []
+        for idx in key_indices:
+            lm = landmarks[idx]
+            if lm.visibility > MIN_VIS:
+                vis_x.append(lm.x)
+                vis_y.append(lm.y)
+
+        if not vis_x:
+            return bytes(frame)  # nothing visible
+
+        # Add padding (10% of span on each side, min 0.05)
+        x_min, x_max = min(vis_x), max(vis_x)
+        y_min, y_max = min(vis_y), max(vis_y)
+        x_span = max(x_max - x_min, 0.05)
+        y_span = max(y_max - y_min, 0.05)
+        pad_x = max(x_span * 0.15, 0.03)
+        pad_y = max(y_span * 0.15, 0.03)
+        x_min = max(0.0, x_min - pad_x)
+        x_max = min(1.0, x_max + pad_x)
+        y_min = max(0.0, y_min - pad_y)
+        y_max = min(1.0, y_max + pad_y)
+        x_range = max(x_max - x_min, 0.01)
+        y_range = max(y_max - y_min, 0.01)
+
         def set_pixel(col, row):
-            """Set a single pixel, bounds-checked."""
             if 0 <= col < VISIBLE_COLS and 0 <= row < TROW:
                 frame[col] |= BITMASK[row]
 
         def lm_to_grid(lm):
-            """Convert a MediaPipe landmark to (col, row) on the grid.
-
-            MediaPipe: x 0→1 (left→right), y 0→1 (top→bottom).
-            Flipdot:   col 0→29, row 0 (bottom) → 6 (top).
-            """
-            # Crop to body region (landmarks are typically in 0.2-0.8 range)
-            # Map to full grid width for better use of the 30 columns
-            x = (lm.x - 0.2) / 0.6  # expand body region to fill width
-            x = max(0.0, min(1.0, x))
+            x = max(0.0, min(1.0, (lm.x - x_min) / x_range))
             col = int(x * (VISIBLE_COLS - 1))
-
-            # Y: invert so top of body = top of display
-            y = (lm.y - 0.1) / 0.8  # crop head-to-feet region
-            y = max(0.0, min(1.0, y))
+            y = max(0.0, min(1.0, (lm.y - y_min) / y_range))
             row = int((1.0 - y) * (TROW - 1))
-
             return col, row
 
         def draw_line(c0, r0, c1, r1):
-            """Bresenham's line on the tiny grid."""
             dc = abs(c1 - c0)
             dr = abs(r1 - r0)
             sc = 1 if c0 < c1 else -1
             sr = 1 if r0 < r1 else -1
             err = dc - dr
-
             while True:
                 set_pixel(c0, r0)
                 if c0 == c1 and r0 == r1:
@@ -264,29 +282,24 @@ class PoseInput:
                     err += dc
                     r0 += sr
 
-        # Draw head (nose landmark = index 0)
+        # Head: 3 pixels wide, 1 row (no top-of-head pixel — saves a row)
         nose = landmarks[0]
         if nose.visibility > MIN_VIS:
             nc, nr = lm_to_grid(nose)
             set_pixel(nc, nr)
-            # Make head 3 pixels wide if there's room
             set_pixel(nc - 1, nr)
             set_pixel(nc + 1, nr)
-            # Top of head
-            set_pixel(nc, min(nr + 1, TROW - 1))
 
-        # Draw neck (nose → midpoint of shoulders)
+        # Neck: nose to midpoint of shoulders
         ls = landmarks[11]
         rs = landmarks[12]
         if nose.visibility > MIN_VIS and ls.visibility > MIN_VIS and rs.visibility > MIN_VIS:
             nc, nr = lm_to_grid(nose)
             lsc, lsr = lm_to_grid(ls)
             rsc, rsr = lm_to_grid(rs)
-            mid_c = (lsc + rsc) // 2
-            mid_r = (lsr + rsr) // 2
-            draw_line(nc, nr, mid_c, mid_r)
+            draw_line(nc, nr, (lsc + rsc) // 2, (lsr + rsr) // 2)
 
-        # Draw all skeleton connections
+        # Skeleton connections
         for a_idx, b_idx in SKELETON:
             a = landmarks[a_idx]
             b = landmarks[b_idx]
