@@ -26,8 +26,8 @@ class Config:
     # Webcam input (Chapter 9)
     WEBCAM_DEVICE = int(os.environ.get('WEBCAM_DEVICE', 0))
     WEBCAM_MOTION_THRESHOLD = int(os.environ.get('WEBCAM_MOTION_THRESHOLD', 5000))
-    WEBCAM_GREETING = os.environ.get('WEBCAM_GREETING', 'WELCOME')
-    WEBCAM_FAREWELL = os.environ.get('WEBCAM_FAREWELL', 'GOODBYE')
+    WEBCAM_GREETING = os.environ.get('WEBCAM_GREETING', 'WELCOME TO BIOPUNK LAB')
+    WEBCAM_FAREWELL = os.environ.get('WEBCAM_FAREWELL', 'SEE YOU LATER')
     WEBCAM_COOLDOWN = int(os.environ.get('WEBCAM_COOLDOWN', 30))
 
     # Webhook

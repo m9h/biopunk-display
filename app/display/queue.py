@@ -87,6 +87,13 @@ class MessageQueue:
                 break
 
             try:
+                # Skip messages while a CA is running on the display
+                if self._app:
+                    player = getattr(self._app, '_automata_player', None)
+                    if player and player.is_running:
+                        self._queue.task_done()
+                        continue
+
                 self._display.send_message(item.body, item.transition)
                 # Mark as played in DB if we have an ID
                 if item.message_id and self._app:

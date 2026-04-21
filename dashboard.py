@@ -28,8 +28,8 @@ import urllib.error
 
 from app.display.automata import Grid
 
-# Display dimensions
-ROWS = 7
+# Display dimensions (two 7-row panels stacked = 14 rows)
+ROWS = 14
 COLS = 30
 
 # Characters for rendering
@@ -243,9 +243,9 @@ def dashboard(stdscr, host):
         stdscr.erase()
         h, w = stdscr.getmaxyx()
 
-        display_w = COLS * 2 + 4  # 64 chars for display box
+        display_w = COLS * 2 + 2  # 62 chars for display box (border + 30*2 dots + border)
         min_w = display_w + 2
-        min_h = 22
+        min_h = 29
 
         if h < min_h or w < min_w:
             stdscr.addstr(0, 0, f"Terminal too small ({w}x{h}). Need {min_w}x{min_h}.")
@@ -263,7 +263,14 @@ def dashboard(stdscr, host):
         y = 0
 
         # ── Title bar ──
-        title = " BIOPUNK FLIPDOT DASHBOARD "
+        automaton = server_info.get('automaton') or 'idle'
+        ca_speed = server_info.get('ca_speed')
+        if automaton != 'idle':
+            title = f" BIOPUNK FLIPDOT \u2502 {automaton.upper()} "
+            if ca_speed:
+                title += f"@ {ca_speed:.2f}s "
+        else:
+            title = " BIOPUNK FLIPDOT DASHBOARD "
         stdscr.attron(curses.color_pair(2) | curses.A_BOLD)
         stdscr.addstr(y, x_off, title.center(min(w - 2, display_w)))
         stdscr.attroff(curses.color_pair(2) | curses.A_BOLD)
@@ -293,12 +300,11 @@ def dashboard(stdscr, host):
         y += 1
 
         # ── Display status line ──
-        automaton = server_info.get('automaton') or 'idle'
         alive = grid.count_alive()
         queue = server_info.get('queue_pending', '?')
-        playlist = server_info.get('playlist_playing') or 'none'
-
-        status_line = f" CA:{automaton}  dots:{alive}/210  queue:{queue}  playlist:{playlist}"
+        webcam_on = server_info.get('webcam', False)
+        cam_str = "cam:ON" if webcam_on else "cam:OFF"
+        status_line = f" dots:{alive}/420  queue:{queue}  {cam_str}"
         stdscr.attron(curses.color_pair(2))
         stdscr.addstr(y, x_off, status_line[:display_w].ljust(display_w))
         stdscr.attroff(curses.color_pair(2))
@@ -368,7 +374,7 @@ def dashboard(stdscr, host):
         if help_y < h - 1:
             stdscr.attron(curses.color_pair(6))
             stdscr.addstr(help_y, x_off,     " 1:life  2:brain  3:rule30  4:rule90  5:cyclic  0/s:stop ")
-            stdscr.addstr(help_y + 1, x_off, " r:restart  +/-:poll speed  q:quit ")
+            stdscr.addstr(help_y + 1, x_off, " r:restart  +/-:speed  w:webcam  q:quit ")
             stdscr.attroff(curses.color_pair(6))
 
         stdscr.refresh()
@@ -384,19 +390,32 @@ def dashboard(stdscr, host):
                      data={'automaton': automaton_name, **opts})
         elif key in (ord('0'), ord('s'), ord('S')):
             api_call(base_url, '/api/automata/stop', method='POST')
+        elif key == ord('w'):
+            api_call(base_url, '/api/webcam/toggle', method='POST')
         elif key == ord('r'):
-            # Restart current CA
             current = server_info.get('automaton')
             if current:
                 api_call(base_url, '/api/automata/stop', method='POST')
                 api_call(base_url, '/api/automata/start', method='POST',
                          data={'automaton': current})
         elif key in (ord('+'), ord('=')):
-            poll_interval = max(0.05, poll_interval - 0.05)
-            stdscr.timeout(int(poll_interval * 1000))
+            # Speed up CA (decrease delay)
+            ca_speed = server_info.get('ca_speed')
+            if ca_speed is not None:
+                api_call(base_url, '/api/automata/speed', method='POST',
+                         data={'speed': ca_speed - 0.05})
+            else:
+                poll_interval = max(0.05, poll_interval - 0.05)
+                stdscr.timeout(int(poll_interval * 1000))
         elif key in (ord('-'), ord('_')):
-            poll_interval = min(5.0, poll_interval + 0.05)
-            stdscr.timeout(int(poll_interval * 1000))
+            # Slow down CA (increase delay)
+            ca_speed = server_info.get('ca_speed')
+            if ca_speed is not None:
+                api_call(base_url, '/api/automata/speed', method='POST',
+                         data={'speed': ca_speed + 0.05})
+            else:
+                poll_interval = min(5.0, poll_interval + 0.05)
+                stdscr.timeout(int(poll_interval * 1000))
 
 
 def main():

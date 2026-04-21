@@ -157,10 +157,52 @@ def find_serial_ports() -> List[str]:
     
     return ports
 
+class RawSerial:
+    """Minimal serial wrapper using raw fd — bypasses pyserial's DTR/RTS ioctls.
+
+    The FTDI chip on this display rejects DTR/RTS ioctl calls with EIO.
+    """
+
+    def __init__(self, port, baud=38400):
+        import os, termios, fcntl
+        self.fd = os.open(port, os.O_RDWR | os.O_NOCTTY | os.O_NONBLOCK)
+        attrs = termios.tcgetattr(self.fd)
+        baud_const = getattr(termios, f'B{baud}', termios.B38400)
+        attrs[4] = baud_const  # ispeed
+        attrs[5] = baud_const  # ospeed
+        attrs[2] = termios.CS8 | termios.CLOCAL | termios.CREAD  # cflag
+        attrs[0] = 0  # iflag
+        attrs[1] = 0  # oflag
+        attrs[3] = 0  # lflag
+        termios.tcsetattr(self.fd, termios.TCSANOW, attrs)
+        flags = fcntl.fcntl(self.fd, fcntl.F_GETFL)
+        fcntl.fcntl(self.fd, fcntl.F_SETFL, flags & ~os.O_NONBLOCK)
+        self.name = port
+
+    def write(self, data):
+        import os
+        os.write(self.fd, data)
+
+    def close(self):
+        import os
+        os.close(self.fd)
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *args):
+        self.close()
+
+
+def _open_serial(port: str, baud: int = 38400, **_kwargs):
+    """Open serial port bypassing DTR/RTS (FTDI compatible)."""
+    return RawSerial(port, baud)
+
+
 def test_flipdot_connection(port: str, baud: int = 38400) -> bool:
     """Test if a port responds like a flipdot display."""
     try:
-        with serial.Serial(port, baud, timeout=2) as ser:
+        with _open_serial(port, baud) as ser:
             # Send a simple command and see if it doesn't error
             ser.write(reset)
             ser.write(b'\x00' * 10)  # Send some null bytes
@@ -272,7 +314,7 @@ class WorkingFlipdotCore:
         
         if port:
             try:
-                ser_main = serial.Serial(port, baud, timeout=1)
+                ser_main = _open_serial(port, baud, timeout=1)
                 print(f"✅ Connected to flipdot display on {port}")
             except (serial.SerialException, OSError) as e:
                 print(f"❌ Failed to connect to {port}: {e}")

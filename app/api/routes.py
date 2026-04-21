@@ -89,11 +89,15 @@ def display_frame():
     if player and player.is_running:
         automaton = player._automaton
 
+    webcam = getattr(current_app, 'webcam_input', None)
+
     return jsonify({
         'frame': current_app.display.last_frame,
         'queue_pending': current_app.message_queue.pending,
         'playlist_playing': current_app.playlists.now_playing,
         'automaton': automaton,
+        'ca_speed': player._speed if player and player.is_running else None,
+        'webcam': webcam._running if webcam else False,
     })
 
 
@@ -318,11 +322,31 @@ def automata_start():
 def automata_stop():
     """Stop the running cellular automaton."""
     player = getattr(current_app, '_automata_player', None)
-    if player and player.is_running:
-        player.stop()
+    if player:
+        if player.is_running:
+            player.stop()
+        current_app._automata_player = None
         current_app.display.clear()
         return jsonify({'status': 'stopped'})
     return jsonify({'status': 'not running'})
+
+
+@bp.route('/automata/speed', methods=['POST'])
+def automata_speed():
+    """Adjust the running CA speed.
+
+    JSON body:
+      speed: seconds between generations (0.05 to 5.0)
+    """
+    player = getattr(current_app, '_automata_player', None)
+    if not player or not player.is_running:
+        return jsonify({'error': 'no CA running'}), 400
+
+    data = request.get_json() or {}
+    speed = float(data.get('speed', player._speed))
+    speed = max(0.05, min(5.0, speed))
+    player._speed = speed
+    return jsonify({'speed': speed})
 
 
 @bp.route('/automata/status', methods=['GET'])
@@ -332,6 +356,7 @@ def automata_status():
     return jsonify({
         'running': player.is_running if player else False,
         'automaton': player._automaton if player and player.is_running else None,
+        'speed': player._speed if player else None,
     })
 
 
@@ -402,6 +427,31 @@ def automata_play_pattern(name):
         'pattern': pattern['name'],
         'automaton': automaton,
         'speed': speed,
+    })
+
+
+@bp.route('/webcam/toggle', methods=['POST'])
+def webcam_toggle():
+    """Toggle webcam greeting on/off."""
+    webcam = getattr(current_app, 'webcam_input', None)
+    if not webcam:
+        return jsonify({'error': 'no webcam module'}), 400
+
+    if webcam._running:
+        webcam.stop()
+        return jsonify({'webcam': 'off'})
+    else:
+        webcam.start()
+        return jsonify({'webcam': 'on'})
+
+
+@bp.route('/webcam/status', methods=['GET'])
+def webcam_status():
+    """Check webcam status."""
+    webcam = getattr(current_app, 'webcam_input', None)
+    return jsonify({
+        'running': webcam._running if webcam else False,
+        'present': webcam.is_present if webcam else False,
     })
 
 

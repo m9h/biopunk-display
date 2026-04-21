@@ -16,9 +16,13 @@ import copy
 
 
 class Grid:
-    """A 7×30 binary grid with toroidal (wrapping) boundaries."""
+    """A 14×30 binary grid with toroidal (wrapping) boundaries.
 
-    def __init__(self, rows=7, cols=30):
+    The physical flipdot display is two 7-row panels stacked vertically,
+    giving 14 rows × 30 columns. Top panel = msg[0:30], bottom = msg[75:105].
+    """
+
+    def __init__(self, rows=14, cols=30):
         self.rows = rows
         self.cols = cols
         self._cells = [[0] * cols for _ in range(rows)]
@@ -61,30 +65,48 @@ class Grid:
     def to_display_bytes(self):
         """Convert grid to 105-byte buffer for core.fill().
 
-        Each of the 30 visible columns becomes one byte.
-        Bit encoding: bit 0 = row 6 (bottom), bit 6 = row 0 (top).
-        Columns 30-74 are padding (0x00).
-        Columns 75-104 are padding (0x00) — used for double-height, not CA.
+        The physical display is 14 rows × 30 columns (two 7-row panels).
+        Top panel (rows 0-6): buf[0:30], direct column mapping.
+        Bottom panel (rows 7-13): buf[30:60], direct column mapping.
+        The core.fill() function handles the physical group-of-5 reordering
+        during serial output — we don't do it here.
+        Bit encoding: bit 6 = top row of panel, bit 0 = bottom row.
         """
         buf = [0] * 105
         for col in range(min(self.cols, 30)):
+            # Top panel: rows 0-6 → buf[col]
             byte_val = 0
             for row in range(min(self.rows, 7)):
                 if self._cells[row][col]:
-                    # row 0 (top) = bit 6, row 6 (bottom) = bit 0
                     byte_val |= (1 << (6 - row))
             buf[col] = byte_val
+            # Bottom panel: rows 7-13 → buf[30 + col]
+            if self.rows > 7:
+                byte_val = 0
+                for row in range(7, min(self.rows, 14)):
+                    if self._cells[row][col]:
+                        byte_val |= (1 << (13 - row))
+                buf[30 + col] = byte_val
         return bytes(buf)
 
     @classmethod
-    def from_display_bytes(cls, data, rows=7, cols=30):
+    def from_display_bytes(cls, data, rows=14, cols=30):
         """Create a Grid from a 105-byte display buffer."""
         grid = cls(rows, cols)
         for col in range(min(cols, 30, len(data))):
+            # Top panel: data[col]
             byte_val = data[col]
             for row in range(min(rows, 7)):
                 if byte_val & (1 << (6 - row)):
                     grid._cells[row][col] = 1
+            # Bottom panel: data[30 + col]
+            if rows > 7:
+                idx = 30 + col
+                if idx < len(data):
+                    byte_val = data[idx]
+                    for row in range(7, min(rows, 14)):
+                        if byte_val & (1 << (13 - row)):
+                            grid._cells[row][col] = 1
         return grid
 
     def __repr__(self):
@@ -248,7 +270,7 @@ def _moore_neighbors(grid, row, col):
     return count
 
 
-def random_states_grid(rows=7, cols=30, num_states=4):
+def random_states_grid(rows=14, cols=30, num_states=4):
     """Create a random states grid for cyclic CA."""
     return [[random.randint(0, num_states - 1) for _ in range(cols)]
             for _ in range(rows)]
@@ -316,13 +338,56 @@ class AutomataPlayer:
 
     def _run(self):
         """Main loop: step and display."""
+        dead_count = 0
+        prev_frames = []  # track recent frames for stagnation detection
+        stale_count = 0
         while self._running:
             self._step()
+
+            # Detect empty grid
+            alive = self._grid.count_alive()
+            if alive == 0:
+                dead_count += 1
+            else:
+                dead_count = 0
+
+            # Detect repeating/static patterns (check last 8 frames)
+            frame = self._grid.to_display_bytes()
+            if frame in prev_frames:
+                stale_count += 1
+            else:
+                stale_count = 0
+            prev_frames.append(frame)
+            if len(prev_frames) > 8:
+                prev_frames.pop(0)
+
+            # Auto-restart if dead or stuck in a loop
+            if dead_count > 3 or stale_count > 12:
+                self._reinit()
+                dead_count = 0
+                stale_count = 0
+                prev_frames.clear()
+
             # Interruptible sleep
             for _ in range(int(self._speed * 20)):
                 if not self._running:
                     return
                 time.sleep(0.05)
+
+    def _reinit(self):
+        """Re-randomize the grid for a fresh start."""
+        if self._automaton == 'cyclic':
+            num_states = self._kwargs.get('num_states', 4)
+            self._states_grid = random_states_grid(num_states=num_states)
+            for r in range(self._grid.rows):
+                for c in range(self._grid.cols):
+                    self._grid.set(r, c, self._states_grid[r][c] != 0)
+        elif self._automaton == 'elementary':
+            self._grid.clear()
+            self._grid.set(0, self._grid.cols // 2, 1)
+        else:
+            self._grid.randomize(self._kwargs.get('density', 0.4))
+            self._dying_grid = Grid()
 
     def _step(self):
         """Advance one generation and send to display."""
@@ -343,11 +408,12 @@ class AutomataPlayer:
                 num_states=num_states, threshold=threshold
             )
 
-        # Send to display
+        # Send to display (acquire lock so we don't collide with message queue)
         display_bytes = self._grid.to_display_bytes()
         try:
-            self._app.display.set_frame(display_bytes)
-            self._app.display.core.fill(display_bytes)
+            with self._app.display._lock:
+                self._app.display.set_frame(display_bytes)
+                self._app.display.core.fill(display_bytes)
         except Exception as e:
             import logging
             logging.getLogger(__name__).warning('AutomataPlayer display error: %s', e)

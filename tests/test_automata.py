@@ -24,7 +24,7 @@ class TestGrid:
 
     def test_default_size(self):
         g = Grid()
-        assert g.rows == 7
+        assert g.rows == 14
         assert g.cols == 30
 
     def test_custom_size(self):
@@ -86,14 +86,14 @@ class TestGrid:
         g = Grid(7, 30)
         g.randomize(density=0.5)
         alive = g.count_alive()
-        total = 7 * 30
+        total = 14 * 30
         # Should be roughly 50% — allow wide margin for small grid
         assert 20 < alive < total - 20
 
     def test_randomize_full(self):
         g = Grid()
         g.randomize(density=1.0)
-        assert g.count_alive() == 7 * 30
+        assert g.count_alive() == 14 * 30
 
     def test_randomize_empty(self):
         g = Grid()
@@ -137,17 +137,18 @@ class TestDisplayBytes:
         data = g.to_display_bytes()
         assert data[5] == 0x7F
 
-    def test_columns_30_to_74_are_zero(self):
+    def test_bottom_panel_in_bytes_30_to_59(self):
         g = Grid()
         g.randomize(1.0)
         data = g.to_display_bytes()
-        assert all(b == 0 for b in data[30:75])
+        # Bottom panel data lives at buf[30:60]
+        assert any(b != 0 for b in data[30:60])
 
-    def test_columns_75_to_104_are_zero(self):
+    def test_columns_60_to_104_are_zero(self):
         g = Grid()
         g.randomize(1.0)
         data = g.to_display_bytes()
-        assert all(b == 0 for b in data[75:])
+        assert all(b == 0 for b in data[60:])
 
     def test_round_trip(self):
         g = Grid()
@@ -247,8 +248,8 @@ class TestGameOfLife:
         g.set(0, 0, 1)  # wraps from right edge
         g.set(0, 1, 1)
         result = game_of_life(g)
-        # Row 6 (wrapping from top) col 0 should be born
-        assert result.get(6, 0) == 1
+        # Row 13 (wrapping from top) col 0 should be born
+        assert result.get(13, 0) == 1
 
 
 # ===========================================================================

@@ -79,7 +79,7 @@ class WebcamInput:
         prev_gray = cv2.cvtColor(prev_frame, cv2.COLOR_BGR2GRAY)
         prev_gray = cv2.GaussianBlur(prev_gray, (21, 21), 0)
 
-        last_trigger = 0
+        last_trigger = time.time()  # suppress greeting at startup
         no_motion_count = 0
 
         try:
@@ -118,13 +118,28 @@ class WebcamInput:
 
     def _trigger_greeting(self):
         """Someone approached — send greeting to display."""
-        self._send_message(self._greeting, 'pop', priority=3)
-        print(f'[webcam] Presence detected — greeting sent', file=sys.stderr)
+        if self._display_busy():
+            print('[webcam] Presence detected — suppressed (display busy)',
+                  file=sys.stderr)
+            return
+        self._send_message(self._greeting, 'righttoleft', priority=3)
+        print('[webcam] Presence detected — greeting sent', file=sys.stderr)
 
     def _trigger_farewell(self):
         """Person left — send farewell."""
+        if self._display_busy():
+            print('[webcam] Presence lost — suppressed (display busy)',
+                  file=sys.stderr)
+            return
         self._send_message(self._farewell, 'dissolve', priority=1)
-        print(f'[webcam] Presence lost — farewell sent', file=sys.stderr)
+        print('[webcam] Presence lost — farewell sent', file=sys.stderr)
+
+    def _display_busy(self):
+        """Check if the display is running a CA or other interactive mode."""
+        player = getattr(self._app, '_automata_player', None)
+        if player is not None:
+            return True
+        return False
 
     def _send_message(self, text, transition, priority=0):
         with self._app.app_context():
