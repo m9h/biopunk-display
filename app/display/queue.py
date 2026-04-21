@@ -87,10 +87,18 @@ class MessageQueue:
                 break
 
             try:
-                # Skip messages while a CA is running on the display
+                # Skip messages while the display is owned by another mode
                 if self._app:
                     player = getattr(self._app, '_automata_player', None)
                     if player and player.is_running:
+                        self._queue.task_done()
+                        continue
+                    ticker = getattr(self._app, 'ticker', None)
+                    if ticker and ticker.is_running:
+                        self._queue.task_done()
+                        continue
+                    video = getattr(self._app, 'video', None)
+                    if video and video.is_running:
                         self._queue.task_done()
                         continue
 

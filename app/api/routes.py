@@ -90,6 +90,8 @@ def display_frame():
         automaton = player._automaton
 
     webcam = getattr(current_app, 'webcam_input', None)
+    ticker = getattr(current_app, 'ticker', None)
+    video = getattr(current_app, 'video', None)
 
     return jsonify({
         'frame': current_app.display.last_frame,
@@ -98,6 +100,8 @@ def display_frame():
         'automaton': automaton,
         'ca_speed': player._speed if player and player.is_running else None,
         'webcam': webcam._running if webcam else False,
+        'ticker': ticker.status if ticker else None,
+        'video': video.status if video else None,
     })
 
 
@@ -284,10 +288,16 @@ def automata_start():
       num_states: states for cyclic CA (default: 4)
       threshold: neighbor threshold for cyclic CA (default: 1)
     """
-    # Stop any running automaton first
+    # Stop any mode currently owning the display.
     player = getattr(current_app, '_automata_player', None)
     if player and player.is_running:
         player.stop()
+    ticker = getattr(current_app, 'ticker', None)
+    if ticker and ticker.is_running:
+        ticker.stop()
+    video = getattr(current_app, 'video', None)
+    if video and video.is_running:
+        video.stop()
 
     data = request.get_json() or {}
     automaton = data.get('automaton', 'life')
@@ -398,10 +408,16 @@ def automata_play_pattern(name):
     if not pattern:
         return jsonify({'error': f'pattern "{name}" not found'}), 404
 
-    # Stop any running automaton
+    # Stop any mode currently owning the display.
     player = getattr(current_app, '_automata_player', None)
     if player and player.is_running:
         player.stop()
+    ticker = getattr(current_app, 'ticker', None)
+    if ticker and ticker.is_running:
+        ticker.stop()
+    video = getattr(current_app, 'video', None)
+    if video and video.is_running:
+        video.stop()
 
     automaton = pattern['automaton']
     speed = pattern.get('speed', 0.3)
@@ -428,6 +444,141 @@ def automata_play_pattern(name):
         'automaton': automaton,
         'speed': speed,
     })
+
+
+# -- Ticker endpoints (looping scroll) --
+
+@bp.route('/ticker/start', methods=['POST'])
+def ticker_start():
+    """Start a looping scrolling-text ticker.
+
+    JSON body (single-mode form):
+      text:  required, the message to scroll
+      speed: seconds per column step (default 0.12; clamped 0.03-1.0)
+      mode:  "single" | "double" | "wide" (default "single")
+
+    JSON body (mixed-mode form):
+      segments: list of {text, mode} dicts
+      speed:    optional (as above)
+
+    If `segments` is provided it takes precedence over `text`/`mode`.
+    """
+    ticker = getattr(current_app, 'ticker', None)
+    if ticker is None:
+        return jsonify({'error': 'ticker not available'}), 503
+
+    data = request.get_json() or {}
+
+    # Stop conflicting modes so the ticker can claim the display.
+    player = getattr(current_app, '_automata_player', None)
+    if player and player.is_running:
+        player.stop()
+    video = getattr(current_app, 'video', None)
+    if video and video.is_running:
+        video.stop()
+
+    speed = float(data.get('speed', 0.12))
+    segments = data.get('segments')
+
+    if segments:
+        if not isinstance(segments, list):
+            return jsonify({'error': 'segments must be a list'}), 400
+        if not ticker.start_segments(segments, speed=speed):
+            return jsonify({'error': 'no valid segments'}), 400
+        return jsonify({'status': 'running', **ticker.status})
+
+    text = (data.get('text') or '').strip()
+    if not text:
+        return jsonify({'error': 'text or segments is required'}), 400
+    mode = data.get('mode', 'single')
+
+    if not ticker.start(text, speed=speed, mode=mode):
+        return jsonify({'error': 'failed to start ticker'}), 400
+
+    return jsonify({'status': 'running', **ticker.status})
+
+
+@bp.route('/ticker/stop', methods=['POST'])
+def ticker_stop():
+    ticker = getattr(current_app, 'ticker', None)
+    if ticker is None:
+        return jsonify({'error': 'ticker not available'}), 503
+    ticker.stop()
+    return jsonify({'status': 'stopped'})
+
+
+@bp.route('/ticker/speed', methods=['POST'])
+def ticker_speed():
+    """Adjust the running ticker's scroll speed.
+
+    JSON body:
+      speed: seconds per column step (clamped to 0.03..1.0)
+    """
+    ticker = getattr(current_app, 'ticker', None)
+    if ticker is None or not ticker.is_running:
+        return jsonify({'error': 'no ticker running'}), 400
+    data = request.get_json() or {}
+    speed = float(data.get('speed', ticker._speed))
+    speed = max(0.03, min(1.0, speed))
+    ticker._speed = speed
+    return jsonify({'speed': speed})
+
+
+@bp.route('/ticker/status', methods=['GET'])
+def ticker_status():
+    ticker = getattr(current_app, 'ticker', None)
+    if ticker is None:
+        return jsonify({'running': False})
+    return jsonify(ticker.status)
+
+
+# -- Video-clip endpoints --
+
+@bp.route('/video/clips', methods=['GET'])
+def video_clips():
+    video = getattr(current_app, 'video', None)
+    if video is None:
+        return jsonify({'clips': []})
+    return jsonify({'clips': video.list_clips()})
+
+
+@bp.route('/video/<clip>/play', methods=['POST'])
+def video_play(clip):
+    """Play a clip.
+
+    JSON body (all optional):
+      fps:  frames per second (default 12.0; clamped 1-60)
+      loop: play repeatedly (default true)
+    """
+    video = getattr(current_app, 'video', None)
+    if video is None:
+        return jsonify({'error': 'video not available'}), 503
+
+    # Stop conflicting modes.
+    player = getattr(current_app, '_automata_player', None)
+    if player and player.is_running:
+        player.stop()
+    ticker = getattr(current_app, 'ticker', None)
+    if ticker and ticker.is_running:
+        ticker.stop()
+
+    data = request.get_json() or {}
+    fps = float(data.get('fps', 12.0))
+    loop = bool(data.get('loop', True))
+
+    if not video.play(clip, fps=fps, loop=loop):
+        return jsonify({'error': f'clip "{clip}" not found or empty'}), 404
+
+    return jsonify({'status': 'playing', **video.status})
+
+
+@bp.route('/video/stop', methods=['POST'])
+def video_stop():
+    video = getattr(current_app, 'video', None)
+    if video is None:
+        return jsonify({'error': 'video not available'}), 503
+    video.stop()
+    return jsonify({'status': 'stopped'})
 
 
 @bp.route('/webcam/toggle', methods=['POST'])
@@ -458,10 +609,16 @@ def webcam_status():
 @bp.route('/shutdown', methods=['POST'])
 def shutdown():
     """Gracefully shut down the Flask server."""
-    # Stop automata if running
+    # Stop any display-owning mode
     player = getattr(current_app, '_automata_player', None)
     if player and player.is_running:
         player.stop()
+    ticker = getattr(current_app, 'ticker', None)
+    if ticker and ticker.is_running:
+        ticker.stop()
+    video = getattr(current_app, 'video', None)
+    if video and video.is_running:
+        video.stop()
 
     # Stop input modules
     for attr in ('voice_input', 'gesture_input', 'webcam_input'):

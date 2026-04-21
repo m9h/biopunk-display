@@ -41,6 +41,13 @@ def create_app(config_class=Config):
     from app.display.playlist import PlaylistManager
     app.playlists = PlaylistManager(app)
 
+    # Ticker (looping scroll) and video-clip player
+    from app.display.ticker import TickerManager
+    app.ticker = TickerManager(app)
+
+    from app.display.video import VideoPlayer
+    app.video = VideoPlayer(app)
+
     # Input modules (start gracefully — each handles missing deps)
     from app.inputs.voice import VoiceInput
     app.voice_input = VoiceInput(app)

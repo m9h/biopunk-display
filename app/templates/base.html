@@ -88,31 +88,36 @@
 
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
   <script>
-  // Flipdot display canvas renderer
+  // Flipdot display canvas renderer (14 rows × 30 cols, dual panel)
   (function() {
     const canvas = document.getElementById('flipdot-canvas');
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
-    const ROWS = 7, COLS = 30;
-    const DOT_SIZE = 16, GAP = 3;
+    const ROWS = 14, COLS = 30;
+    const DOT_SIZE = 13, GAP = 2;
+    const PANEL_GAP = 4;  // extra space between top and bottom panels
     const ON_COLOR = '#00ff41';
     const OFF_COLOR = '#1a1a1a';
     const BG_COLOR = '#0a0a0a';
 
     canvas.width = COLS * (DOT_SIZE + GAP) + GAP;
-    canvas.height = ROWS * (DOT_SIZE + GAP) + GAP;
+    canvas.height = ROWS * (DOT_SIZE + GAP) + GAP + PANEL_GAP;
 
     function drawFrame(frame) {
       ctx.fillStyle = BG_COLOR;
       ctx.fillRect(0, 0, canvas.width, canvas.height);
 
       for (let c = 0; c < COLS; c++) {
-        const byte = frame[c] || 0;
+        const topByte = frame[c] || 0;
+        const bottomByte = frame[30 + c] || 0;
         for (let r = 0; r < ROWS; r++) {
-          // bit 6 = row 0 (top), bit 0 = row 6 (bottom)
-          const on = byte & (1 << (6 - r));
+          // Top panel rows 0-6 → frame[c], bit 6=row0 ... bit 0=row6
+          // Bottom panel rows 7-13 → frame[30+c], bit 6=row7 ... bit 0=row13
+          const on = r < 7
+            ? (topByte & (1 << (6 - r)))
+            : (bottomByte & (1 << (13 - r)));
           const x = GAP + c * (DOT_SIZE + GAP);
-          const y = GAP + r * (DOT_SIZE + GAP);
+          const y = GAP + r * (DOT_SIZE + GAP) + (r >= 7 ? PANEL_GAP : 0);
           ctx.fillStyle = on ? ON_COLOR : OFF_COLOR;
           ctx.beginPath();
           ctx.roundRect(x, y, DOT_SIZE, DOT_SIZE, 2);
@@ -135,6 +140,8 @@
           if (info) {
             const parts = [];
             if (data.automaton) parts.push('CA: ' + data.automaton);
+            if (data.ticker && data.ticker.running) parts.push('ticker: ' + data.ticker.mode);
+            if (data.video && data.video.running) parts.push('video: ' + data.video.clip);
             if (data.playlist_playing) parts.push('playlist: ' + data.playlist_playing);
             parts.push('queue: ' + (data.queue_pending || 0));
             info.textContent = parts.join(' | ');
@@ -157,6 +164,55 @@
     window.stopCA = function() {
       fetch('/api/automata/stop', {method: 'POST'});
     };
+
+    // Ticker controls
+    window.startTicker = function() {
+      const text = document.getElementById('ticker-text').value;
+      const speed = parseFloat(document.getElementById('ticker-speed').value);
+      const mode = document.getElementById('ticker-mode').value;
+      if (!text || !text.trim()) return;
+      fetch('/api/ticker/start', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({text: text, speed: speed, mode: mode})
+      });
+    };
+    window.stopTicker = function() {
+      fetch('/api/ticker/stop', {method: 'POST'});
+    };
+
+    // Video-clip controls
+    window.playClip = function() {
+      const select = document.getElementById('video-clip');
+      if (!select || !select.value) return;
+      const fps = parseFloat(document.getElementById('video-fps').value);
+      fetch('/api/video/' + encodeURIComponent(select.value) + '/play', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({fps: fps, loop: true})
+      });
+    };
+    window.stopClip = function() {
+      fetch('/api/video/stop', {method: 'POST'});
+    };
+    window.refreshClips = function() {
+      const select = document.getElementById('video-clip');
+      if (!select) return;
+      fetch('/api/video/clips').then(r => r.json()).then(data => {
+        const current = select.value;
+        select.innerHTML = '';
+        (data.clips || []).forEach(c => {
+          const opt = document.createElement('option');
+          opt.value = c.name;
+          opt.textContent = c.name + ' (' + c.frames + ' frames)';
+          select.appendChild(opt);
+        });
+        if (current) select.value = current;
+        const empty = document.getElementById('video-empty');
+        if (empty) empty.style.display = (data.clips || []).length ? 'none' : '';
+      });
+    };
+    if (document.getElementById('video-clip')) refreshClips();
   })();
   </script>
 </body>

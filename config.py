@@ -37,6 +37,10 @@ class Config:
     PLAYLIST_DIR = os.environ.get('PLAYLIST_DIR',
                                    os.path.join(basedir, 'playlists'))
 
+    # Video clip frames (directory holding <clip_name>/NNNN.png sequences)
+    VIDEO_FRAMES_DIR = os.environ.get('VIDEO_FRAMES_DIR',
+                                       os.path.join(basedir, 'video', 'frames'))
+
     # OpenClaw (Chapter 14)
     ANTHROPIC_API_KEY = os.environ.get('ANTHROPIC_API_KEY')
     OPENCLAW_MODEL = os.environ.get('OPENCLAW_MODEL', 'claude-sonnet-4-6')
