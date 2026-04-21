@@ -21,10 +21,38 @@ Controls:
 import curses
 import json
 import os
+import re
 import sys
 import time
 import urllib.request
 import urllib.error
+
+# Inline ticker markup: {{s:WORD}} / {{d:WORD}} / {{w:WORD}}.
+# Text outside matches becomes single-height segments.
+_TICKER_MARKUP = re.compile(r'\{\{([sdw]):([^}]+)\}\}')
+_MODE_MAP = {'s': 'single', 'd': 'double', 'w': 'wide'}
+
+
+def parse_ticker_markup(text):
+    """Split text with {{x:...}} markup into a list of {text, mode} segments.
+
+    Returns None if the text contains no markup (caller can fall back to the
+    legacy text+mode form).
+    """
+    if not _TICKER_MARKUP.search(text):
+        return None
+    segments = []
+    last = 0
+    for m in _TICKER_MARKUP.finditer(text):
+        before = text[last:m.start()].strip()
+        if before:
+            segments.append({'text': before, 'mode': 'single'})
+        segments.append({'text': m.group(2).strip(), 'mode': _MODE_MAP[m.group(1)]})
+        last = m.end()
+    tail = text[last:].strip()
+    if tail:
+        segments.append({'text': tail, 'mode': 'single'})
+    return [s for s in segments if s['text']]
 
 from app.display.automata import Grid
 
@@ -176,6 +204,70 @@ def api_call(base_url, path, method='GET', data=None):
         return None
 
 
+def prompt_line(stdscr, prompt, restore_timeout_ms, max_len=120):
+    """Read a line of text from the user at the bottom of the screen.
+
+    Returns the entered string (possibly empty) or None if cancelled.
+    `restore_timeout_ms` is the main-loop timeout to restore on exit.
+    """
+    h, _w = stdscr.getmaxyx()
+    row = h - 1
+    curses.curs_set(1)
+    curses.echo()
+    stdscr.timeout(-1)
+    try:
+        stdscr.move(row, 0)
+        stdscr.clrtoeol()
+        stdscr.attron(curses.color_pair(2) | curses.A_BOLD)
+        stdscr.addstr(row, 0, prompt)
+        stdscr.attroff(curses.color_pair(2) | curses.A_BOLD)
+        stdscr.refresh()
+        try:
+            raw = stdscr.getstr(row, len(prompt), max_len)
+        except KeyboardInterrupt:
+            return None
+        if raw is None:
+            return None
+        return raw.decode('utf-8', errors='replace').strip()
+    finally:
+        curses.noecho()
+        curses.curs_set(0)
+        stdscr.timeout(restore_timeout_ms)
+
+
+def prompt_char(stdscr, prompt, restore_timeout_ms, choices, default):
+    """Read a single-key choice from the user at the bottom of the screen.
+
+    Returns one of `choices` (lowercase) or `default` on Enter, or None on ESC.
+    """
+    h, _w = stdscr.getmaxyx()
+    row = h - 1
+    curses.curs_set(1)
+    stdscr.timeout(-1)
+    try:
+        stdscr.move(row, 0)
+        stdscr.clrtoeol()
+        stdscr.attron(curses.color_pair(2) | curses.A_BOLD)
+        stdscr.addstr(row, 0, prompt)
+        stdscr.attroff(curses.color_pair(2) | curses.A_BOLD)
+        stdscr.refresh()
+        while True:
+            k = stdscr.getch()
+            if k == 27:
+                return None
+            if k in (10, 13):
+                return default
+            try:
+                ch = chr(k).lower()
+            except ValueError:
+                continue
+            if ch in choices:
+                return ch
+    finally:
+        curses.curs_set(0)
+        stdscr.timeout(restore_timeout_ms)
+
+
 def draw_box(stdscr, y, x, w, title, color_pair=3):
     """Draw a titled box top border. Returns y+1 for content."""
     stdscr.attron(curses.color_pair(color_pair))
@@ -218,6 +310,8 @@ def dashboard(stdscr, host):
     last_sys_check = 0
     sys_stats = {}
     usb_devices = []
+    video_clip_idx = 0
+    playlist_idx = 0
 
     while True:
         now = time.time()
@@ -265,10 +359,22 @@ def dashboard(stdscr, host):
         # ── Title bar ──
         automaton = server_info.get('automaton') or 'idle'
         ca_speed = server_info.get('ca_speed')
-        if automaton != 'idle':
+        ticker_info = server_info.get('ticker') or {}
+        video_info = server_info.get('video') or {}
+        playlist_name = server_info.get('playlist_playing')
+        if playlist_name:
+            title = f" BIOPUNK FLIPDOT │ PLAYLIST: {playlist_name} "
+        elif automaton != 'idle':
             title = f" BIOPUNK FLIPDOT \u2502 {automaton.upper()} "
             if ca_speed:
                 title += f"@ {ca_speed:.2f}s "
+        elif ticker_info.get('running'):
+            tk_text = (ticker_info.get('text') or '')[:20]
+            title = f" BIOPUNK FLIPDOT │ TICKER: {tk_text} "
+        elif video_info.get('running'):
+            clip = video_info.get('clip') or '?'
+            fps = video_info.get('fps') or 0
+            title = f" BIOPUNK FLIPDOT │ VIDEO: {clip} @ {fps:.0f}fps "
         else:
             title = " BIOPUNK FLIPDOT DASHBOARD "
         stdscr.attron(curses.color_pair(2) | curses.A_BOLD)
@@ -373,8 +479,8 @@ def dashboard(stdscr, host):
         help_y = max(py + 1, h - 3) if not wide_mode else h - 3
         if help_y < h - 1:
             stdscr.attron(curses.color_pair(6))
-            stdscr.addstr(help_y, x_off,     " 1:life  2:brain  3:rule30  4:rule90  5:cyclic  0/s:stop ")
-            stdscr.addstr(help_y + 1, x_off, " r:restart  +/-:speed  w:webcam  q:quit ")
+            stdscr.addstr(help_y, x_off,     " 1:life 2:brain 3:rule30 4:rule90 5:cyclic  t:ticker  v:video  p:playlist  0/s:stop ")
+            stdscr.addstr(help_y + 1, x_off, " ticker mix: HELLO {{d:WORLD}} {{w:BIOPUNK}}  │  r:restart  +/-:speed  w:webcam  q:quit ")
             stdscr.attroff(curses.color_pair(6))
 
         stdscr.refresh()
@@ -390,6 +496,48 @@ def dashboard(stdscr, host):
                      data={'automaton': automaton_name, **opts})
         elif key in (ord('0'), ord('s'), ord('S')):
             api_call(base_url, '/api/automata/stop', method='POST')
+            api_call(base_url, '/api/ticker/stop', method='POST')
+            api_call(base_url, '/api/video/stop', method='POST')
+            api_call(base_url, '/api/playlists/stop', method='POST')
+        elif key == ord('p'):
+            pls_resp = api_call(base_url, '/api/playlists') or {}
+            pls = pls_resp.get('playlists', [])
+            if pls:
+                entry = pls[playlist_idx % len(pls)]
+                playlist_idx += 1
+                api_call(base_url,
+                         f'/api/playlists/{entry["filename"]}/play',
+                         method='POST')
+        elif key == ord('t'):
+            text = prompt_line(
+                stdscr,
+                ' ticker> (use {{d:WORD}} {{w:WORD}} for mixed modes): ',
+                int(poll_interval * 1000),
+            )
+            if text:
+                segments = parse_ticker_markup(text)
+                if segments is not None:
+                    api_call(base_url, '/api/ticker/start', method='POST',
+                             data={'segments': segments})
+                else:
+                    mode_key = prompt_char(
+                        stdscr,
+                        ' mode: [s]ingle  [d]ouble  [w]ide  (Enter=single) > ',
+                        int(poll_interval * 1000),
+                        choices='sdw', default='s',
+                    )
+                    if mode_key is not None:
+                        mode = _MODE_MAP[mode_key]
+                        api_call(base_url, '/api/ticker/start', method='POST',
+                                 data={'text': text, 'mode': mode})
+        elif key == ord('v'):
+            clips_resp = api_call(base_url, '/api/video/clips') or {}
+            clips = [c['name'] for c in clips_resp.get('clips', [])]
+            if clips:
+                name = clips[video_clip_idx % len(clips)]
+                video_clip_idx += 1
+                api_call(base_url, f'/api/video/{name}/play', method='POST',
+                         data={'loop': True})
         elif key == ord('w'):
             api_call(base_url, '/api/webcam/toggle', method='POST')
         elif key == ord('r'):
@@ -399,20 +547,28 @@ def dashboard(stdscr, host):
                 api_call(base_url, '/api/automata/start', method='POST',
                          data={'automaton': current})
         elif key in (ord('+'), ord('=')):
-            # Speed up CA (decrease delay)
+            # Speed up (decrease delay) on whichever mode owns the display.
             ca_speed = server_info.get('ca_speed')
+            tk_speed = ticker_info.get('speed') if ticker_info.get('running') else None
             if ca_speed is not None:
                 api_call(base_url, '/api/automata/speed', method='POST',
                          data={'speed': ca_speed - 0.05})
+            elif tk_speed is not None:
+                api_call(base_url, '/api/ticker/speed', method='POST',
+                         data={'speed': tk_speed - 0.02})
             else:
                 poll_interval = max(0.05, poll_interval - 0.05)
                 stdscr.timeout(int(poll_interval * 1000))
         elif key in (ord('-'), ord('_')):
-            # Slow down CA (increase delay)
+            # Slow down (increase delay) on whichever mode owns the display.
             ca_speed = server_info.get('ca_speed')
+            tk_speed = ticker_info.get('speed') if ticker_info.get('running') else None
             if ca_speed is not None:
                 api_call(base_url, '/api/automata/speed', method='POST',
                          data={'speed': ca_speed + 0.05})
+            elif tk_speed is not None:
+                api_call(base_url, '/api/ticker/speed', method='POST',
+                         data={'speed': tk_speed + 0.02})
             else:
                 poll_interval = min(5.0, poll_interval + 0.05)
                 stdscr.timeout(int(poll_interval * 1000))

@@ -1,0 +1,43 @@
+{
+  "name": "Mixed Demo",
+  "repeat": true,
+  "delay_between": 3,
+  "items": [
+    {
+      "type": "ticker",
+      "segments": [
+        {"text": "HELLO",   "mode": "single"},
+        {"text": "WORLD",   "mode": "double"},
+        {"text": "BIOPUNK", "mode": "wide"}
+      ],
+      "speed": 0.08,
+      "duration": 15
+    },
+    {
+      "type": "ca",
+      "automaton": "life",
+      "speed": 0.3,
+      "density": 0.4,
+      "duration": 12
+    },
+    {
+      "type": "ticker",
+      "text": "LIVE FROM THE LAB",
+      "mode": "double",
+      "speed": 0.1,
+      "duration": 10
+    },
+    {
+      "type": "video",
+      "clip": "demo-pulse",
+      "fps": 12,
+      "loop": true,
+      "duration": 8
+    },
+    {
+      "type": "message",
+      "body": "END OF LOOP",
+      "transition": "dissolve"
+    }
+  ]
+}
