@@ -28,6 +28,9 @@ def create_app(config_class=Config):
     # Display manager (always active)
     from app.display.manager import DisplayManager
     app.display = DisplayManager(app)
+    # Eagerly probe hardware so status endpoints reflect reality from boot.
+    # Falls back to FallbackSerial if no port is detected.
+    _ = app.display.core
 
     # Message queue (always active)
     from app.display.queue import MessageQueue
