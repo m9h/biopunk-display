@@ -135,9 +135,23 @@ class WebcamInput:
         print('[webcam] Presence lost — farewell sent', file=sys.stderr)
 
     def _display_busy(self):
-        """Check if the display is running a CA or other interactive mode."""
+        """Check if the display is owned by any interactive mode.
+
+        When any of these are active, we suppress greeting/farewell queueing
+        entirely — otherwise the message would sit in the queue and play
+        unexpectedly once the mode ends.
+        """
         player = getattr(self._app, '_automata_player', None)
-        if player is not None:
+        if player is not None and player.is_running:
+            return True
+        ticker = getattr(self._app, 'ticker', None)
+        if ticker is not None and ticker.is_running:
+            return True
+        video = getattr(self._app, 'video', None)
+        if video is not None and video.is_running:
+            return True
+        playlists = getattr(self._app, 'playlists', None)
+        if playlists is not None and playlists.now_playing:
             return True
         return False
 
