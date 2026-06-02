@@ -16,6 +16,8 @@ Controls:
   0 / s     — stop CA
   +/-       — poll speed
   r         — restart current CA
+  p         — choose a playlist from the directory (arrow keys + Enter)
+  t / v     — ticker / video
 """
 
 import curses
@@ -268,6 +270,92 @@ def prompt_char(stdscr, prompt, restore_timeout_ms, choices, default):
         stdscr.timeout(restore_timeout_ms)
 
 
+def pick_playlist(stdscr, base_url, restore_timeout_ms):
+    """Show an interactive list of playlists and let the user choose one.
+
+    Returns the selected playlist's filename, or None if cancelled.
+    Navigate with arrow keys (or j/k), Enter to play, ESC/q to cancel.
+    """
+    resp = api_call(base_url, '/api/playlists') or {}
+    playlists = resp.get('playlists', [])
+    now_playing = (api_call(base_url, '/api/display/status') or {}).get('playlist_playing')
+
+    if not playlists:
+        h, _w = stdscr.getmaxyx()
+        row = h - 1
+        stdscr.move(row, 0)
+        stdscr.clrtoeol()
+        stdscr.attron(curses.color_pair(7) | curses.A_BOLD)
+        stdscr.addstr(row, 0, ' No playlists found in directory. Press any key. ')
+        stdscr.attroff(curses.color_pair(7) | curses.A_BOLD)
+        stdscr.timeout(-1)
+        stdscr.getch()
+        stdscr.timeout(restore_timeout_ms)
+        return None
+
+    # Pre-select the currently-playing playlist if there is one.
+    sel = 0
+    for i, p in enumerate(playlists):
+        if p['name'] == now_playing or p['filename'] == now_playing:
+            sel = i
+            break
+
+    stdscr.timeout(-1)
+    try:
+        while True:
+            h, w = stdscr.getmaxyx()
+            # Centered box sized to the list.
+            box_w = min(max(40, max(len(p['name']) for p in playlists) + 24), w - 2)
+            box_h = min(len(playlists) + 4, h - 2)
+            visible = box_h - 4
+            y0 = max(0, (h - box_h) // 2)
+            x0 = max(0, (w - box_w) // 2)
+
+            # Scroll window so the selection stays visible.
+            top = 0
+            if sel >= visible:
+                top = sel - visible + 1
+            top = min(top, max(0, len(playlists) - visible))
+
+            stdscr.erase()
+            draw_box(stdscr, y0, x0, box_w, 'CHOOSE PLAYLIST', 2)
+            for r in range(visible):
+                idx = top + r
+                ly = y0 + 1 + r
+                if idx >= len(playlists):
+                    draw_box_line(stdscr, ly, x0, box_w, '', text_color=3)
+                    continue
+                p = playlists[idx]
+                marker = '▶' if (p['name'] == now_playing or p['filename'] == now_playing) else ' '
+                label = f"{marker} {p['name']}  ({p['items']} items{', loop' if p['repeat'] else ''})"
+                if idx == sel:
+                    stdscr.attron(curses.color_pair(3))
+                    stdscr.addstr(ly, x0, "│")
+                    stdscr.addstr(ly, x0 + box_w - 1, "│")
+                    stdscr.attroff(curses.color_pair(3))
+                    stdscr.attron(curses.color_pair(1) | curses.A_BOLD)
+                    stdscr.addstr(ly, x0 + 2, label[:box_w - 4].ljust(box_w - 4))
+                    stdscr.attroff(curses.color_pair(1) | curses.A_BOLD)
+                else:
+                    draw_box_line(stdscr, ly, x0, box_w, label, text_color=2)
+            draw_box_line(stdscr, y0 + 1 + visible, x0, box_w,
+                          '↑↓ move  Enter:play  ESC:cancel', text_color=6)
+            draw_box_bottom(stdscr, y0 + 2 + visible, x0, box_w)
+            stdscr.refresh()
+
+            k = stdscr.getch()
+            if k in (27, ord('q'), ord('Q')):
+                return None
+            elif k in (curses.KEY_UP, ord('k')):
+                sel = (sel - 1) % len(playlists)
+            elif k in (curses.KEY_DOWN, ord('j')):
+                sel = (sel + 1) % len(playlists)
+            elif k in (10, 13, curses.KEY_ENTER):
+                return playlists[sel]['filename']
+    finally:
+        stdscr.timeout(restore_timeout_ms)
+
+
 def draw_box(stdscr, y, x, w, title, color_pair=3):
     """Draw a titled box top border. Returns y+1 for content."""
     stdscr.attron(curses.color_pair(color_pair))
@@ -311,7 +399,6 @@ def dashboard(stdscr, host):
     sys_stats = {}
     usb_devices = []
     video_clip_idx = 0
-    playlist_idx = 0
 
     while True:
         now = time.time()
@@ -475,11 +562,24 @@ def dashboard(stdscr, host):
         draw_box_bottom(stdscr, py, px, pw)
         py += 1
 
+        # ── Playlist panel ──
+        py = draw_box(stdscr, py, px, pw, "PLAYLIST", 3)
+        current_pl = server_info.get('playlist_playing')
+        if current_pl:
+            draw_box_line(stdscr, py, px, pw, f"▶ {current_pl}", text_color=2)
+        else:
+            draw_box_line(stdscr, py, px, pw, "(none playing)", text_color=3)
+        py += 1
+        draw_box_line(stdscr, py, px, pw, "press p to choose", text_color=6)
+        py += 1
+        draw_box_bottom(stdscr, py, px, pw)
+        py += 1
+
         # ── Help bar (bottom) ──
         help_y = max(py + 1, h - 3) if not wide_mode else h - 3
         if help_y < h - 1:
             stdscr.attron(curses.color_pair(6))
-            stdscr.addstr(help_y, x_off,     " 1:life 2:brain 3:rule30 4:rule90 5:cyclic  t:ticker  v:video  p:playlist  0/s:stop ")
+            stdscr.addstr(help_y, x_off,     " 1:life 2:brain 3:rule30 4:rule90 5:cyclic  t:ticker  v:video  p:choose playlist  0/s:stop ")
             stdscr.addstr(help_y + 1, x_off, " ticker mix: HELLO {{d:WORLD}} {{w:BIOPUNK}}  │  r:restart  +/-:speed  w:webcam  q:quit ")
             stdscr.attroff(curses.color_pair(6))
 
@@ -500,13 +600,9 @@ def dashboard(stdscr, host):
             api_call(base_url, '/api/video/stop', method='POST')
             api_call(base_url, '/api/playlists/stop', method='POST')
         elif key == ord('p'):
-            pls_resp = api_call(base_url, '/api/playlists') or {}
-            pls = pls_resp.get('playlists', [])
-            if pls:
-                entry = pls[playlist_idx % len(pls)]
-                playlist_idx += 1
-                api_call(base_url,
-                         f'/api/playlists/{entry["filename"]}/play',
+            filename = pick_playlist(stdscr, base_url, int(poll_interval * 1000))
+            if filename:
+                api_call(base_url, f'/api/playlists/{filename}/play',
                          method='POST')
         elif key == ord('t'):
             text = prompt_line(
