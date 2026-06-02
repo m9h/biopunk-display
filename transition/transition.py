@@ -6,7 +6,7 @@ Updated transitions that use the working core system with perfect positioning.
 """
 
 import time
-import random
+import random as _random  # aliased: a transition function below is named `random` and would shadow the module
 from core.core import working_core, getbytes, scrollleft, fillfrombottomup, fillfromtopdown, erasefromtopdown, erasefrombottomup, fillrandomorder, eraserandomorder, clear
 
 def upnext(message: str):
@@ -136,7 +136,7 @@ def matrix_effect(message: str):
     """Matrix digital rain effect."""
     # Matrix effect with random characters
     for _ in range(15):
-        random_text = ''.join(random.choice('01') for _ in range(10))
+        random_text = ''.join(_random.choice('01') for _ in range(10))
         working_core.display_text(random_text, justify='left')
         time.sleep(0.1)
     
@@ -170,7 +170,7 @@ SPECIAL_TRANSITION_LIST = [dissolve, matrix_effect, slide_in_left]
 
 def random_pick(pick_list):
     """Randomly pick from transition list."""
-    return random.choice(pick_list)
+    return _random.choice(pick_list)
 
 def random(message: str):
     """Random transition."""
