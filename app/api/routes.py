@@ -606,6 +606,24 @@ def webcam_status():
     })
 
 
+@bp.route('/webcam/thumbnail', methods=['GET'])
+def webcam_thumbnail():
+    """Return the latest low-res grayscale webcam frame.
+
+    `thumbnail` is a list of rows (top to bottom), each a list of 0-255
+    brightness values, or null when the webcam isn't running / has no frame
+    yet. Used by the curses dashboard to render a live preview.
+    """
+    webcam = getattr(current_app, 'webcam_input', None)
+    thumb = getattr(webcam, 'thumbnail', None) if webcam else None
+    return jsonify({
+        'running': webcam._running if webcam else False,
+        'thumbnail': thumb,
+        'width': len(thumb[0]) if thumb else 0,
+        'height': len(thumb) if thumb else 0,
+    })
+
+
 @bp.route('/shutdown', methods=['POST'])
 def shutdown():
     """Gracefully shut down the Flask server."""

@@ -20,6 +20,7 @@ class WebcamInput:
         self._running = False
         self._app = None
         self._present = False
+        self._thumbnail = None  # latest low-res grayscale grid (list of rows)
         if app is not None:
             self.init_app(app)
 
@@ -31,11 +32,32 @@ class WebcamInput:
         self._farewell = app.config.get('WEBCAM_FAREWELL', 'GOODBYE')
         self._cooldown = app.config.get('WEBCAM_COOLDOWN', 30)  # seconds
         self._check_interval = app.config.get('WEBCAM_CHECK_INTERVAL', 1.0)
+        self._thumb_w = app.config.get('WEBCAM_THUMB_W', 32)
+        self._thumb_h = app.config.get('WEBCAM_THUMB_H', 12)
         app.webcam_input = self
 
     @property
     def is_present(self):
         return self._present
+
+    @property
+    def thumbnail(self):
+        """Latest low-res grayscale frame as a list of rows (0-255), or None.
+
+        Updated once per monitor iteration from the frame already captured
+        for motion detection, so it costs only a downscale — no extra reads.
+        """
+        return self._thumbnail
+
+    def _store_thumbnail(self, frame):
+        """Downscale a BGR frame to a small grayscale grid for the monitor."""
+        import cv2
+        small = cv2.resize(
+            frame, (self._thumb_w, self._thumb_h),
+            interpolation=cv2.INTER_AREA,
+        )
+        gray = cv2.cvtColor(small, cv2.COLOR_BGR2GRAY)
+        self._thumbnail = gray.tolist()
 
     def start(self):
         """Start webcam monitoring."""
@@ -76,6 +98,7 @@ class WebcamInput:
             cap.release()
             return
 
+        self._store_thumbnail(prev_frame)
         prev_gray = cv2.cvtColor(prev_frame, cv2.COLOR_BGR2GRAY)
         prev_gray = cv2.GaussianBlur(prev_gray, (21, 21), 0)
 
@@ -90,6 +113,7 @@ class WebcamInput:
                 if not ret:
                     continue
 
+                self._store_thumbnail(frame)
                 gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
                 gray = cv2.GaussianBlur(gray, (21, 21), 0)
 
@@ -115,6 +139,7 @@ class WebcamInput:
                         self._trigger_farewell()
         finally:
             cap.release()
+            self._thumbnail = None
 
     def _trigger_greeting(self):
         """Someone approached — send greeting to display."""

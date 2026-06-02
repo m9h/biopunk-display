@@ -66,6 +66,9 @@ COLS = 30
 DOT_ON = "\u2588\u2588"    # ██
 DOT_OFF = "\u2592\u2592"   # ▒▒
 
+# Brightness ramp (dark -> bright) for rendering the webcam thumbnail.
+CAM_RAMP = " .:-=+*#%@"
+
 CA_KEYS = {
     ord('1'): ('life', {}),
     ord('2'): ('brain', {}),
@@ -399,6 +402,8 @@ def dashboard(stdscr, host):
     sys_stats = {}
     usb_devices = []
     video_clip_idx = 0
+    last_cam_check = 0
+    cam_thumb = None
 
     while True:
         now = time.time()
@@ -419,6 +424,12 @@ def dashboard(stdscr, host):
             usb_devices = get_usb_devices()
             server_status = api_call(base_url, '/api/display/status') or {}
             last_sys_check = now
+
+        # Poll the webcam thumbnail ~1Hz (matches the server's capture rate).
+        if now - last_cam_check > 1.0:
+            cam_resp = api_call(base_url, '/api/webcam/thumbnail') or {}
+            cam_thumb = cam_resp.get('thumbnail')  # None when webcam off
+            last_cam_check = now
 
         # --- Draw ---
         stdscr.erase()
@@ -574,6 +585,29 @@ def dashboard(stdscr, host):
         py += 1
         draw_box_bottom(stdscr, py, px, pw)
         py += 1
+
+        # ── Webcam thumbnail panel ──
+        # Reserve 2 rows for the help bar below; draw only what fits so a
+        # short terminal never overflows (curses addstr would raise).
+        cam_w = min((pw - 4), len(cam_thumb[0])) if cam_thumb else 0
+        avail_rows = (h - 2) - (py + 2)  # box top + bottom eat 2 rows
+        if avail_rows >= 2:
+            py = draw_box(stdscr, py, px, pw, "WEBCAM", 3)
+            if not cam_thumb:
+                draw_box_line(stdscr, py, px, pw,
+                              "(off — press w to enable)", text_color=3)
+                py += 1
+            else:
+                rows = min(len(cam_thumb), avail_rows - 1)
+                for r in range(rows):
+                    line = ''.join(
+                        CAM_RAMP[min(len(CAM_RAMP) - 1, v * len(CAM_RAMP) // 256)]
+                        for v in cam_thumb[r][:cam_w]
+                    )
+                    draw_box_line(stdscr, py, px, pw, line, text_color=2)
+                    py += 1
+            draw_box_bottom(stdscr, py, px, pw)
+            py += 1
 
         # ── Help bar (bottom) ──
         help_y = max(py + 1, h - 3) if not wide_mode else h - 3
