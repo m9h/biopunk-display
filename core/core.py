@@ -308,7 +308,13 @@ class WorkingFlipdotCore:
     def __init__(self, port: Optional[str] = None, baud: int = 38400):
         """Initialize display with auto-detection."""
         global ser_main
-        
+
+        # Logical column buffer (TCOLUMN bytes) of the most recent frame sent
+        # to the panel. Every render path funnels through fill(), so this is a
+        # faithful mirror of whatever is currently lit — used by the monitor
+        # endpoint regardless of which subsystem (text/CA/ticker/video) drew it.
+        self.last_frame = bytes(TCOLUMN)
+
         if port is None:
             port = find_flipdot_port(baud)
         
@@ -326,6 +332,7 @@ class WorkingFlipdotCore:
     
     def clear(self) -> None:
         """Clear display."""
+        self.last_frame = bytes(TCOLUMN)
         if ser_main:
             ser_main.write(reset + row1)
             ser_main.write(b'\x00' * TCOLUMN)
@@ -344,9 +351,16 @@ class WorkingFlipdotCore:
     
     def fill(self, message: bytes, fillmask: int = 127) -> bytes:
         """Fill display."""
+        # Snapshot the logical frame (masked, column-major) for the monitor
+        # mirror. Done first so it records intent even in simulation mode.
+        self.last_frame = bytes(
+            (message[c] & fillmask) if c < len(message) else 0
+            for c in range(TCOLUMN)
+        )
+
         if not ser_main:
             return message
-            
+
         ser_main.write(reset + row1)
 
         for i in range(150):

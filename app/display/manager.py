@@ -103,7 +103,16 @@ class DisplayManager:
 
     @property
     def last_frame(self):
-        """Return the last known display frame as a list of ints."""
+        """Return the last known display frame as a list of ints.
+
+        Prefer the core's live capture, which every render path (text, CA,
+        ticker, video, transitions) funnels through, so the monitor mirror
+        stays accurate no matter which subsystem owns the display. Falls back
+        to the explicitly-stored frame if the core isn't initialized yet.
+        """
+        core = self._core
+        if core is not None and getattr(core, 'last_frame', None) is not None:
+            return list(core.last_frame)
         return list(self._last_frame)
 
     def clear(self):
